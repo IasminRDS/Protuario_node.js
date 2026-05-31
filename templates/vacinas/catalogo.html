@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Catálogo de Vacinas{% endblock %}
+{% block page_title %}Catálogo de Vacinas{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('vacinas.nova_vacina') }}" class="btn btn-primary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Nova Vacina
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="table-wrapper">
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Sigla</th>
+          <th>Fabricante</th>
+          <th>Doses</th>
+          <th>Intervalo</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vacinas %}
+        <tr>
+          <td class="fw-500">{{ v.nome }}</td>
+          <td class="font-mono" style="font-size:.82rem">{{ v.sigla or '—' }}</td>
+          <td>{{ v.fabricante or '—' }}</td>
+          <td style="text-align:center"><span class="badge badge-azul">{{ v.doses_total }}</span></td>
+          <td>{{ (v.intervalo_dias|string + ' dias') if v.intervalo_dias else '—' }}</td>
+          <td>
+            {% if v.ativo %}<span class="badge badge-verde">Ativa</span>
+            {% else %}<span class="badge badge-cinza">Inativa</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--cinza-400)">
+          Nenhuma vacina cadastrada.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

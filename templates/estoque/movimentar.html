@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Movimentar Estoque{% endblock %}
+{% block page_title %}Movimentar — {{ item.nome }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('estoque.index') }}" class="btn btn-secondary">Voltar</a>{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+  <div>
+    <div class="card mb-16" style="border-left:4px solid var(--sus-azul)">
+      <div class="card-body" style="padding:14px 20px">
+        <div class="fw-600">{{ item.nome }}</div>
+        <div style="font-size:.82rem;color:var(--cinza-400)">{{ item.apresentacao or '' }} · {{ item.categoria|capitalize }}</div>
+        {% set slabel, scor = item.status %}
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.4rem;font-weight:700;color:{% if item.quantidade<=0 %}var(--sus-vermelho){% elif item.abaixo_minimo %}var(--sus-amarelo){% else %}var(--sus-verde){% endif %}">
+            {{ item.quantidade }} {{ item.unidade_medida }}
+          </span>
+          <span class="badge badge-{{ scor }}">{{ slabel }}</span>
+        </div>
+        <div style="font-size:.75rem;color:var(--cinza-400)">Mínimo: {{ item.estoque_minimo }} {{ item.unidade_medida }}</div>
+      </div>
+    </div>
+    <form method="POST">
+      <div class="card">
+        <div class="card-header"><h3>Nova Movimentação</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Tipo <span class="obrigatorio">*</span></label>
+              <select name="tipo" class="form-control" required>
+                {% for val, lbl in [('entrada','Entrada'),('saida','Saída'),
+                  ('ajuste','Ajuste de inventário'),('perda','Perda / Quebra'),
+                  ('vencimento','Descarte por vencimento')] %}
+                <option value="{{ val }}">{{ lbl }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Quantidade <span class="obrigatorio">*</span></label>
+              <input type="number" name="quantidade" class="form-control" min="0.01" step="any" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Lote</label>
+              <input type="text" name="lote" class="form-control font-mono" value="{{ item.lote_atual or '' }}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fornecedor</label>
+              <input type="text" name="fornecedor" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nota fiscal</label>
+              <input type="text" name="nota_fiscal" class="form-control font-mono">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Motivo</label>
+              <input type="text" name="motivo" class="form-control" placeholder="Justificativa da movimentação">
+            </div>
+          </div>
+        </div>
+        <div class="card-footer" style="display:flex;justify-content:flex-end;gap:12px">
+          <a href="{{ url_for('estoque.index') }}" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Registrar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Últimas movimentações</h3></div>
+    <div class="table-wrapper">
+      <table class="tabela">
+        <thead><tr><th>Data</th><th>Tipo</th><th>Qtd</th><th>Saldo</th><th>Usuário</th></tr></thead>
+        <tbody>
+          {% for m in historico %}
+          {% set tlabel, tcor = m.tipo_label %}
+          <tr>
+            <td class="font-mono" style="font-size:.78rem">{{ m.criado_em.strftime('%d/%m %H:%M') }}</td>
+            <td><span class="badge badge-{{ tcor }}" style="font-size:.7rem">{{ tlabel }}</span></td>
+            <td class="font-mono" style="color:{% if m.tipo in ('entrada','ajuste') %}var(--sus-verde){% else %}var(--sus-vermelho){% endif %}">
+              {% if m.tipo == 'saida' or m.tipo in ('perda','vencimento') %}-{% else %}+{% endif %}{{ m.quantidade }}
+            </td>
+            <td class="font-mono" style="font-size:.8rem">{{ m.quantidade_posterior or '—' }}</td>
+            <td style="font-size:.78rem">{{ m.usuario.nome.split()[0] if m.usuario else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--cinza-400)">Sem movimentações.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

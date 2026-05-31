@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Atendimentos{% endblock %}
+{% block page_title %}Relatório de Atendimentos{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('relatorios.index') }}" class="btn btn-secondary">Voltar</a>
+  <a href="{{ request.url }}&exportar=csv" class="btn btn-secondary">Exportar CSV</a>
+{% endblock %}
+
+{% block content %}
+<form method="GET" class="card mb-20">
+  <div class="card-body" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+    <div class="form-group">
+      <label class="form-label">Data inicial</label>
+      <input type="date" name="data_ini" class="form-control" value="{{ data_ini }}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data final</label>
+      <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+    </div>
+    <div class="form-group" style="min-width:160px">
+      <label class="form-label">Tipo</label>
+      <select name="tipo" class="form-control">
+        <option value="">Todos</option>
+        {% for t in ['consulta','retorno','urgencia','exame','vacina','procedimento'] %}
+        <option value="{{ t }}" {% if tipo==t %}selected{% endif %}>{{ t|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+
+{% if totais_tipo %}
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+  {% for t, n in totais_tipo.items() %}
+  <div style="background:var(--branco);border:1px solid var(--cinza-200);border-radius:var(--raio);
+              padding:10px 16px;text-align:center;min-width:100px">
+    <div style="font-size:1.3rem;font-weight:700;color:var(--sus-azul)">{{ n }}</div>
+    <div style="font-size:.72rem;color:var(--cinza-500)">{{ t|capitalize }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <h3>{{ atendimentos|length }} atendimento(s)</h3>
+  </div>
+  <div class="table-wrapper">
+    <table class="tabela">
+      <thead><tr><th>Data/Hora</th><th>Paciente</th><th>Tipo</th><th>Status</th><th>Médico</th></tr></thead>
+      <tbody>
+        {% for a in atendimentos %}
+        <tr>
+          <td class="font-mono" style="font-size:.8rem">{{ a.data_hora.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td><a href="{{ url_for('pacientes.perfil', id=a.paciente_id) }}" class="fw-500">{{ a.paciente.nome_exibicao }}</a></td>
+          <td><span class="badge badge-azul">{{ a.tipo|capitalize }}</span></td>
+          <td><span class="badge badge-{% if a.status=='finalizado' %}verde{% elif a.status=='cancelado' %}vermelho{% else %}cinza{% endif %}">{{ a.status|capitalize }}</span></td>
+          <td style="font-size:.84rem">{{ a.medico.nome if a.medico else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--cinza-400)">Nenhum resultado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

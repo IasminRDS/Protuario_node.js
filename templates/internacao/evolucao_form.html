@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Nova Evolução{% endblock %}
+{% block page_title %}Evolução Clínica{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('internacao.visualizar', id=intern.id) }}" class="btn btn-secondary">Voltar</a>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-16" style="border-left:4px solid var(--sus-azul)">
+  <div class="card-body" style="padding:14px 20px;display:flex;gap:16px;align-items:center">
+    <div>
+      <div class="fw-600">{{ intern.paciente.nome_exibicao }}</div>
+      <div style="font-size:.8rem;color:var(--cinza-400)">
+        Leito {{ intern.leito.numero }} · {{ intern.leito.setor.nome }} · {{ intern.dias_internado }} dias internado
+      </div>
+    </div>
+  </div>
+</div>
+
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card mb-20">
+    <div class="card-header"><h3>Sinais Vitais</h3></div>
+    <div class="card-body">
+      <div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px">
+        {% for label, name, placeholder in [
+          ('PA (mmHg)','pressao_arterial','120/80'),
+          ('Temp. (°C)','temperatura','36.5'),
+          ('FC (bpm)','frequencia_cardiaca','80'),
+          ('FR (irpm)','frequencia_respiratoria','16'),
+          ('SpO₂ (%)','saturacao_o2','98'),
+          ('Diurese (mL)','diurese_ml','1500'),
+          ('Balanço hídrico (mL)','balanco_hidrico','0'),
+        ] %}
+        <div class="form-group">
+          <label class="form-label">{{ label }}</label>
+          <input type="{{ 'text' if name=='pressao_arterial' else 'number' }}"
+                 name="{{ name }}" class="form-control font-mono"
+                 placeholder="{{ placeholder }}" step="any">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Evolução SOAP</h3>
+      <div style="margin-left:auto">
+        <select name="tipo" class="form-control" style="width:160px">
+          {% for val, lbl in [('medica','Médica'),('enfermagem','Enfermagem'),
+            ('fisioterapia','Fisioterapia'),('nutricao','Nutrição'),
+            ('psicologia','Psicologia'),('servico_social','Serviço Social')] %}
+          <option value="{{ val }}">{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="soap-grid">
+        {% for id, label, cls, ph in [
+          ('subjetivo','S — Subjetivo','soap-s','Queixa, sintomas, relato do paciente...'),
+          ('objetivo','O — Objetivo','soap-o','Exame físico, dados objetivos...'),
+          ('avaliacao','A — Avaliação','soap-a','Diagnóstico, hipóteses...'),
+          ('plano','P — Plano','soap-p','Conduta, ajustes de medicação...'),
+        ] %}
+        <div class="soap-card {{ cls }}">
+          <div class="soap-label">{{ label }}</div>
+          <div style="padding:4px">
+            <textarea name="{{ id }}" class="form-control"
+                      style="border:none;box-shadow:none;resize:vertical;min-height:100px"
+                      placeholder="{{ ph }}"></textarea>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card-footer" style="display:flex;justify-content:flex-end;gap:12px">
+      <a href="{{ url_for('internacao.visualizar', id=intern.id) }}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary btn-lg">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        Registrar Evolução
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}

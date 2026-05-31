@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Alertas{% endblock %}
+{% block page_title %}Alertas{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;display:grid;gap:12px;">
+  {% for a in alertas %}
+    <div class="card"><div class="card-body">
+      <strong>{{ a.titulo }}</strong>
+      <div class="text-muted" style="margin-top:6px;">{{ a.descricao }}</div>
+    </div></div>
+  {% endfor %}
+</div>
+{% endblock %}

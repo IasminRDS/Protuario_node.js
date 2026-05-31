@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Prescrições Hospitalares{% endblock %}
+{% block page_title %}Prescrições — Internação #{{ intern.id }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('internacao.visualizar', id=intern.id) }}" class="btn btn-secondary">Voltar</a>
+  <a href="{{ url_for('pres_hosp.nova', internacao_id=intern.id) }}" class="btn btn-primary">+ Nova Prescrição</a>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-16" style="border-left:4px solid var(--sus-azul)">
+  <div class="card-body" style="padding:12px 20px">
+    <div class="fw-600">{{ intern.paciente.nome_exibicao }}</div>
+    <div style="font-size:.8rem;color:var(--cinza-400)">Leito {{ intern.leito.numero }} · {{ intern.dias_internado }} dias</div>
+  </div>
+</div>
+
+{% for p in pres_list %}
+{% set slabel, scor = p.status_label %}
+<div class="card mb-16" style="border-left:4px solid {% if p.status=='ativa' %}var(--sus-verde){% else %}var(--cinza-300){% endif %}">
+  <div class="card-header">
+    <div>
+      <div class="fw-600">{{ p.data_prescricao.strftime('%d/%m/%Y %H:%M') }}</div>
+      <div style="font-size:.78rem;color:var(--cinza-400)">{{ p.medico.nome if p.medico else '—' }}</div>
+    </div>
+    <span class="badge badge-{{ scor }} ms-auto">{{ slabel }}</span>
+    <a href="{{ url_for('pres_hosp.visualizar', id=p.id) }}" class="btn btn-sm btn-secondary">Ver</a>
+  </div>
+  <div class="card-body" style="padding:12px 20px">
+    {% if p.dieta %}
+    <div style="font-size:.84rem;margin-bottom:8px"><strong>Dieta:</strong> {{ p.dieta }}</div>
+    {% endif %}
+    <div style="display:flex;flex-direction:column;gap:4px">
+      {% for item in p.itens %}
+      <div style="font-size:.84rem;display:flex;gap:8px">
+        <span class="fw-500" style="min-width:160px">{{ item.nome_exibicao }}</span>
+        <span style="color:var(--cinza-500)">{{ item.dose or '' }} {{ item.via or '' }} {{ item.frequencia or '' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body" style="text-align:center;padding:40px;color:var(--cinza-400)">
+    Nenhuma prescrição registrada.
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

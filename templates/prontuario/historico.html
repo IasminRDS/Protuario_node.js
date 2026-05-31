@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Histórico — {{ paciente.nome_exibicao }}{% endblock %}
+{% block page_title %}Histórico de Prontuários{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('pacientes.perfil', id=paciente.id) }}" class="btn btn-secondary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Perfil do Paciente
+  </a>
+  {% if current_user.is_medico() or current_user.is_admin() %}
+  <a href="{{ url_for('prontuario.novo', paciente_id=paciente.id) }}" class="btn btn-primary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Novo Prontuário
+  </a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- Banner paciente -->
+<div class="card mb-24" style="border-left:4px solid var(--sus-azul)">
+  <div class="card-body" style="padding:16px 24px">
+    <div class="flex-center gap-16">
+      <div style="width:44px;height:44px;border-radius:50%;background:var(--sus-azul);
+                  display:flex;align-items:center;justify-content:center;
+                  color:white;font-size:1.1rem;font-weight:700;flex-shrink:0">
+        {{ paciente.nome[0] }}
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:1rem">{{ paciente.nome_exibicao }}</div>
+        <div style="font-size:.78rem;color:var(--cinza-500, #6b7385)">
+          {{ paciente.data_nascimento.strftime('%d/%m/%Y') }} · {{ paciente.idade }} anos
+          {% if paciente.cns %} · CNS <span class="font-mono">{{ paciente.cns }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="ms-auto" style="font-size:.8rem;color:var(--cinza-400)">
+        {{ prontuarios|length }} registro(s)
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if prontuarios %}
+  {% for p in prontuarios %}
+  <div class="card mb-16" style="{% if not p.assinado %}border-left:3px solid var(--sus-amarelo){% else %}border-left:3px solid var(--sus-verde){% endif %}">
+    <div class="card-header" style="padding:14px 20px">
+      <div>
+        <div class="flex-center gap-8">
+          <span class="font-mono" style="font-size:.85rem;font-weight:600">
+            {{ p.criado_em.strftime('%d/%m/%Y às %H:%M') }}
+          </span>
+          {% if p.assinado %}
+            <span class="badge badge-verde">Assinado</span>
+          {% else %}
+            <span class="badge badge-amarelo">Rascunho</span>
+          {% endif %}
+          {% if p.cid_principal %}
+            <span class="badge badge-azul font-mono">{{ p.cid_principal }}</span>
+          {% endif %}
+        </div>
+        <div style="font-size:.78rem;color:var(--cinza-400);margin-top:3px">
+          {{ p.medico.nome if p.medico else 'Profissional não identificado' }}
+          · {{ p.unidade.nome if p.unidade else '' }}
+        </div>
+      </div>
+      <div class="ms-auto flex gap-8">
+        <a href="{{ url_for('prontuario.visualizar', id=p.id) }}" class="btn btn-sm btn-secondary">Ver completo</a>
+        {% if not p.assinado and (current_user.is_medico() or current_user.is_admin()) %}
+          <a href="{{ url_for('prontuario.editar', id=p.id) }}" class="btn btn-sm btn-primary">Editar</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body" style="padding:16px 20px">
+      <div class="soap-grid">
+        <div class="soap-card soap-s">
+          <div class="soap-label">S — Subjetivo (Queixa)</div>
+          <div class="soap-content" style="max-height:80px;overflow:hidden;font-size:.82rem">
+            {{ p.subjetivo or '' }}
+          </div>
+        </div>
+        <div class="soap-card soap-a">
+          <div class="soap-label">A — Avaliação (Diagnóstico)</div>
+          <div class="soap-content" style="max-height:80px;overflow:hidden;font-size:.82rem">
+            {{ p.avaliacao or '' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:64px;color:var(--cinza-400)">
+      <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+           style="margin:0 auto 16px;opacity:.25">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <p style="font-size:.95rem;margin-bottom:20px">Nenhum prontuário registrado para este paciente.</p>
+      {% if current_user.is_medico() or current_user.is_admin() %}
+        <a href="{{ url_for('prontuario.novo', paciente_id=paciente.id) }}" class="btn btn-primary">
+          Registrar primeiro prontuário
+        </a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}

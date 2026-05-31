@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar AIH' if aih else 'Nova AIH' }}{% endblock %}
+{% block page_title %}{{ 'Editar AIH #'+aih.id|string if aih else 'Nova AIH' }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('faturamento.aih_lista') }}" class="btn btn-secondary">Voltar</a>
+{% endblock %}
+{% block content %}
+<div style="max-width:720px">
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="card-header"><h3>Dados da AIH</h3></div>
+    <div class="card-body">
+      <div class="form-grid form-grid-2">
+
+        {% if not aih %}
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Internação <span class="obrigatorio">*</span></label>
+          <select name="internacao_id" class="form-control" required id="sel-intern"
+                  onchange="preencherPaciente(this)">
+            <option value="">— Selecione a internação —</option>
+            {% for i in internacoes %}
+            <option value="{{ i.id }}" data-paciente="{{ i.paciente_id }}"
+                    data-cid="{{ i.cid_principal or '' }}" data-entrada="{{ i.data_entrada.strftime('%Y-%m-%d') }}"
+                    data-saida="{{ i.data_alta.strftime('%Y-%m-%d') if i.data_alta else '' }}"
+                    data-dias="{{ i.dias_internado }}"
+                    {% if intern_sel and intern_sel.id==i.id %}selected{% endif %}>
+              #{{ i.id }} — {{ i.paciente.nome_exibicao }} ({{ i.data_entrada.strftime('%d/%m/%Y') }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <input type="hidden" name="paciente_id" id="paciente_id"
+               value="{{ intern_sel.paciente_id if intern_sel else '' }}">
+        {% else %}
+        <input type="hidden" name="internacao_id" value="{{ aih.internacao_id }}">
+        <input type="hidden" name="paciente_id" value="{{ aih.paciente_id }}">
+        {% endif %}
+
+        <div class="form-group">
+          <label class="form-label">Número AIH</label>
+          <input type="text" name="numero_aih" class="form-control font-mono" maxlength="13"
+                 placeholder="13 dígitos" value="{{ aih.numero_aih if aih else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo AIH</label>
+          <select name="tipo_aih" class="form-control">
+            <option value="1" {% if not aih or aih.tipo_aih=='1' %}selected{% endif %}>1 — Normal</option>
+            <option value="5" {% if aih and aih.tipo_aih=='5' %}selected{% endif %}>5 — Longa permanência</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Competência (AAAA/MM)</label>
+          <input type="text" name="competencia" class="form-control font-mono"
+                 placeholder="2025/01" value="{{ aih.competencia if aih else comp_atual }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Caráter internação</label>
+          <select name="carater_internacao" class="form-control">
+            <option value="01">01 — Eletivo</option>
+            <option value="02">02 — Urgência</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">CID principal</label>
+          <input type="text" name="cid_principal" class="form-control font-mono"
+                 placeholder="Ex: J18.9" maxlength="10" style="text-transform:uppercase"
+                 value="{{ aih.cid_principal if aih else (intern_sel.cid_principal if intern_sel else '') }}"
+                 id="cid_principal">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CID secundário</label>
+          <input type="text" name="cid_secundario" class="form-control font-mono"
+                 placeholder="Ex: I10" maxlength="10" style="text-transform:uppercase"
+                 value="{{ aih.cid_secundario if aih else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Procedimento principal (SIGTAP)</label>
+          <input type="text" name="procedimento_principal" class="form-control font-mono"
+                 placeholder="0301060037" value="{{ aih.procedimento_principal if aih else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Procedimento secundário</label>
+          <input type="text" name="procedimento_secundario" class="form-control font-mono"
+                 value="{{ aih.procedimento_secundario if aih else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data internação</label>
+          <input type="date" name="data_internacao" class="form-control" id="data_internacao"
+                 value="{{ aih.data_internacao.strftime('%Y-%m-%d') if aih and aih.data_internacao else (intern_sel.data_entrada.strftime('%Y-%m-%d') if intern_sel else '') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data saída</label>
+          <input type="date" name="data_saida" class="form-control" id="data_saida"
+                 value="{{ aih.data_saida.strftime('%Y-%m-%d') if aih and aih.data_saida else (intern_sel.data_alta.strftime('%Y-%m-%d') if intern_sel and intern_sel.data_alta else '') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dias de permanência</label>
+          <input type="number" name="dias_permanencia" class="form-control font-mono" id="dias_perm"
+                 value="{{ aih.dias_permanencia if aih else (intern_sel.dias_internado if intern_sel else '') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Motivo de saída</label>
+          <select name="motivo_saida" class="form-control">
+            <option value="">—</option>
+            {% for val, lbl in [('11','Alta curado'),('12','Alta melhorado'),('13','Alta a pedido'),
+              ('14','Alta c/ retorno'),('15','Evasão'),('16','Transferência'),
+              ('21','Óbito c/ declaração'),('22','Óbito s/ declaração')] %}
+            <option value="{{ val }}" {% if aih and aih.motivo_saida==val %}selected{% endif %}>{{ val }} — {{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor total (R$)</label>
+          <input type="number" name="valor_total" class="form-control font-mono" step="0.01"
+                 value="{{ aih.valor_total if aih else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor SH (R$)</label>
+          <input type="number" name="valor_sh" class="form-control font-mono" step="0.01"
+                 value="{{ aih.valor_sh if aih else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor SP (R$)</label>
+          <input type="number" name="valor_sp" class="form-control font-mono" step="0.01"
+                 value="{{ aih.valor_sp if aih else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select name="status" class="form-control">
+            {% for val, lbl in [('rascunho','Rascunho'),('pronto','Pronto'),('enviado','Enviado'),
+              ('aprovado','Aprovado'),('glosado','Glosado'),('pago','Pago')] %}
+            <option value="{{ val }}" {% if aih and aih.status==val %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Observações</label>
+          <textarea name="observacoes" class="form-control" rows="2">{{ aih.observacoes if aih else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer" style="display:flex;justify-content:flex-end;gap:12px">
+      <a href="{{ url_for('faturamento.aih_lista') }}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">{{ 'Salvar' if aih else 'Criar AIH' }}</button>
+    </div>
+  </div>
+</form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function preencherPaciente(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('paciente_id').value = opt.dataset.paciente || '';
+  if (opt.dataset.cid) document.getElementById('cid_principal').value = opt.dataset.cid;
+  if (opt.dataset.entrada) document.getElementById('data_internacao').value = opt.dataset.entrada;
+  if (opt.dataset.saida) document.getElementById('data_saida').value = opt.dataset.saida;
+  if (opt.dataset.dias) document.getElementById('dias_perm').value = opt.dataset.dias;
+}
+</script>
+{% endblock %}

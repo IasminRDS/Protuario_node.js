@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Solicitar Exames{% endblock %}
+{% block page_title %}Solicitar Exames{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('exames.lista_paciente', paciente_id=paciente.id) }}" class="btn btn-secondary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Voltar
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-16" style="border-left:4px solid var(--sus-azul)">
+  <div class="card-body" style="padding:14px 20px">
+    <div style="font-weight:600">{{ paciente.nome_exibicao }}</div>
+    <div style="font-size:.8rem;color:var(--cinza-500)">{{ paciente.idade }} anos · CNS {{ paciente.cns or '—' }}</div>
+  </div>
+</div>
+
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start">
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    {% for categoria, tipos in categorias.items() %}
+    <div class="card">
+      <div class="card-header">
+        <h3>{{ categoria|capitalize }}</h3>
+        <span style="font-size:.78rem;color:var(--cinza-400);margin-left:8px">{{ tipos|length }} exame(s)</span>
+        <button type="button" class="btn btn-sm btn-secondary ms-auto"
+                onclick="marcarTodos('cat-{{ loop.index }}')">Marcar todos</button>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="cat-{{ loop.index }}">
+          {% for t in tipos %}
+          <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;
+                         border-radius:var(--raio);border:1px solid var(--cinza-200);
+                         cursor:pointer;font-size:.84rem;transition:all .12s"
+                 onmouseover="this.style.background='var(--sus-azul-claro)';this.style.borderColor='var(--sus-azul-medio)'"
+                 onmouseout="this.style.background='';this.style.borderColor='var(--cinza-200)'">
+            <input type="checkbox" name="tipo_exame_ids" value="{{ t.id }}"
+                   style="width:15px;height:15px;flex-shrink:0">
+            <div>
+              <span class="fw-500">{{ t.nome }}</span>
+              {% if t.codigo %}
+                <span class="font-mono" style="font-size:.72rem;color:var(--cinza-400);margin-left:4px">{{ t.codigo }}</span>
+              {% endif %}
+              {% if t.instrucoes %}
+                <div style="font-size:.7rem;color:var(--cinza-400)">{{ t.instrucoes[:60] }}</div>
+              {% endif %}
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:40px;color:var(--cinza-400)">
+        Nenhum exame cadastrado.
+        <a href="{{ url_for('exames.novo_tipo') }}" class="btn btn-primary btn-sm" style="margin-top:12px;display:inline-flex">
+          Cadastrar exame
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Lateral -->
+  <div style="position:sticky;top:72px">
+    <div class="card">
+      <div class="card-header"><h3>Configurações</h3></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-group">
+          <label class="form-label">Urgência</label>
+          <select name="urgencia" class="form-control">
+            <option value="rotina">Rotina</option>
+            <option value="urgente">Urgente</option>
+            <option value="urgentissimo">Urgentíssimo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Indicação clínica</label>
+          <textarea name="indicacao_clinica" class="form-control" rows="3"
+                    placeholder="Hipótese diagnóstica, justificativa..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <textarea name="observacoes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="card-footer" style="display:flex;flex-direction:column;gap:8px">
+        <div id="contador-sel" style="font-size:.82rem;color:var(--cinza-500);text-align:center">
+          0 exame(s) selecionado(s)
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+          Solicitar Exames
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function marcarTodos(catId) {
+  document.querySelectorAll(`#${catId} input[type=checkbox]`).forEach(cb => cb.checked = true);
+  atualizarContador();
+}
+function atualizarContador() {
+  const n = document.querySelectorAll('input[name=tipo_exame_ids]:checked').length;
+  document.getElementById('contador-sel').textContent = `${n} exame(s) selecionado(s)`;
+}
+document.querySelectorAll('input[name=tipo_exame_ids]').forEach(cb =>
+  cb.addEventListener('change', atualizarContador));
+</script>
+{% endblock %}

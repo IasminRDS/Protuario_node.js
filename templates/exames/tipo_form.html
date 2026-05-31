@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Novo Tipo de Exame{% endblock %}
+{% block page_title %}Cadastrar Tipo de Exame{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('exames.catalogo') }}" class="btn btn-secondary">Voltar</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:560px">
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="card">
+      <div class="card-header"><h3>Dados do Exame</h3></div>
+      <div class="card-body">
+        <div class="form-grid form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Código <span class="obrigatorio">*</span></label>
+            <input type="text" name="codigo" class="form-control font-mono"
+                   placeholder="Ex: HMG" maxlength="20" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <select name="categoria" class="form-control">
+              {% for c in ['laboratorial','imagem','funcional','anatomopatologico','outro'] %}
+              <option value="{{ c }}">{{ c|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label class="form-label">Nome completo <span class="obrigatorio">*</span></label>
+            <input type="text" name="nome" class="form-control" required
+                   placeholder="Ex: Hemograma completo">
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label class="form-label">Instruções de preparo</label>
+            <textarea name="instrucoes" class="form-control" rows="3"
+                      placeholder="Ex: Jejum de 8 horas..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer" style="display:flex;justify-content:flex-end;gap:12px">
+        <a href="{{ url_for('exames.catalogo') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

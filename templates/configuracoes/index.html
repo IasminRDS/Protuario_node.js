@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Configurações{% endblock %}
+{% block page_title %}Configurações{% endblock %}
+{% block content %}
+<div class="card" style="max-width:900px;margin:0 auto;">
+  <div class="card-body">
+    <form method="post" action="{{ url_for('configuracoes.salvar') }}" style="display:grid;gap:10px;">
+      <div>
+        <label class="form-label">Nome da unidade</label>
+        <input class="form-control" name="nome_unidade" value="{{ cfg.nome_unidade }}">
+      </div>
+      <div>
+        <label class="form-label">UF</label>
+        <input class="form-control" name="uf" value="{{ cfg.uf }}">
+      </div>
+      <div>
+        <label class="form-label">Tema</label>
+        <select class="form-control" name="tema">
+          <option value="escuro" {% if cfg.tema=='escuro' %}selected{% endif %}>Escuro</option>
+          <option value="claro" {% if cfg.tema=='claro' %}selected{% endif %}>Claro</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

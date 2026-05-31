@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Relatório PS{% endblock %}
+{% block page_title %}Relatório Pronto-Socorro{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('rel_hosp.index') }}" class="btn btn-secondary">Voltar</a>
+  <a href="{{ request.url }}&exportar=csv" class="btn btn-secondary">Exportar CSV</a>
+{% endblock %}
+{% block content %}
+<form method="GET" class="card mb-20">
+  <div class="card-body" style="display:flex;gap:14px;align-items:flex-end">
+    <div class="form-group"><label class="form-label">Data inicial</label>
+      <input type="date" name="data_ini" class="form-control" value="{{ data_ini }}"></div>
+    <div class="form-group"><label class="form-label">Data final</label>
+      <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}"></div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+  <div class="stat-card azul"><div class="stat-label">Total atendimentos</div><div class="stat-value">{{ ats|length }}</div></div>
+  <div class="stat-card verde"><div class="stat-label">Tempo médio (min)</div><div class="stat-value">{{ tempo_medio or '—' }}</div></div>
+  <div class="stat-card" style="border-left:4px solid var(--sus-azul)"><div class="stat-label">Internados</div><div class="stat-value">{{ por_desfecho.get('internado',0) }}</div></div>
+</div>
+
+{% if por_cor %}
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+  {% for cor, hex_cor in [('vermelho','#C0392B'),('laranja','#E67E22'),('amarelo','#F1C40F'),('verde','#27AE60'),('azul','#2980B9')] %}
+  {% if por_cor.get(cor, 0) > 0 %}
+  <div style="border:2px solid {{ hex_cor }};border-radius:var(--raio);padding:10px 16px;text-align:center;min-width:90px">
+    <div style="font-size:1.4rem;font-weight:700;color:{{ hex_cor }}">{{ por_cor.get(cor,0) }}</div>
+    <div style="font-size:.7rem;color:{{ hex_cor }}">{{ cor|capitalize }}</div>
+  </div>{% endif %}{% endfor %}
+</div>{% endif %}
+
+<div class="card">
+  <div class="card-header"><h3>{{ ats|length }} atendimento(s)</h3></div>
+  <div class="table-wrapper"><table class="tabela">
+    <thead><tr><th>Data/Hora</th><th>Paciente</th><th>Classificação</th><th>Médico</th><th>Desfecho</th><th>Tempo</th></tr></thead>
+    <tbody>
+      {% for a in ats %}{% set label, hex_cor, _ = a.cor_info %}
+      <tr>
+        <td class="font-mono" style="font-size:.8rem">{{ a.data_entrada.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td><a href="{{ url_for('pacientes.perfil', id=a.paciente_id) }}" class="fw-500">{{ a.paciente.nome_exibicao }}</a></td>
+        <td><span style="display:inline-flex;align-items:center;gap:4px">
+          <span style="width:8px;height:8px;border-radius:50%;background:{{ hex_cor }}"></span>
+          <span style="font-size:.82rem;font-weight:500;color:{{ hex_cor }}">{{ label }}</span>
+        </span></td>
+        <td style="font-size:.84rem">{{ a.medico.nome if a.medico else '—' }}</td>
+        <td>{% if a.desfecho %}<span class="badge badge-{% if a.desfecho=='alta' %}verde{% elif a.desfecho=='internado' %}azul{% elif a.desfecho=='obito' %}vermelho{% else %}cinza{% endif %}">{{ a.desfecho|capitalize }}</span>{% else %}—{% endif %}</td>
+        <td class="font-mono" style="font-size:.8rem">{{ (a.tempo_total_min|string+'min') if a.tempo_total_min else '—' }}</td>
+      </tr>
+      {% else %}<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--cinza-400)">Nenhum resultado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

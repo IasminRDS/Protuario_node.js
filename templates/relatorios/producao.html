@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Produção{% endblock %}
+{% block page_title %}Relatório de Produção{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('relatorios.index') }}" class="btn btn-secondary">Voltar</a>
+  <a href="{{ request.url }}&exportar=csv" class="btn btn-secondary">Exportar CSV</a>
+{% endblock %}
+
+{% block content %}
+<form method="GET" class="card mb-20">
+  <div class="card-body" style="display:flex;gap:14px;align-items:flex-end">
+    <div class="form-group">
+      <label class="form-label">Data inicial</label>
+      <input type="date" name="data_ini" class="form-control" value="{{ data_ini }}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data final</label>
+      <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Gerar</button>
+  </div>
+</form>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+  {% for label, valor, cor in [
+    ('Atendimentos', total_at, 'azul'),
+    ('Prontuários', total_pront, 'verde'),
+    ('Agendamentos', total_ag, 'azul'),
+    ('Triagens', total_tri, 'vermelho'),
+    ('Exames solicitados', total_exam, 'amarelo'),
+    ('Encaminhamentos', total_enc, 'cinza'),
+    ('Vacinas aplicadas', total_vac, 'verde'),
+    ('Novos pacientes', novos_pac, 'azul'),
+    ('Faltas/Cancelamentos', faltas, 'vermelho'),
+  ] %}
+  <div class="stat-card {{ cor }}">
+    <div class="stat-label">{{ label }}</div>
+    <div class="stat-value">{{ valor }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

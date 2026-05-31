@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Pacientes{% endblock %}
+{% block page_title %}Relatório de Pacientes{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('relatorios.index') }}" class="btn btn-secondary">Voltar</a>
+  <a href="{{ request.url }}&exportar=csv" class="btn btn-secondary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+    </svg>
+    Exportar CSV
+  </a>
+{% endblock %}
+
+{% block content %}
+<form method="GET" class="card mb-20">
+  <div class="card-body" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+    <div class="form-group" style="min-width:120px">
+      <label class="form-label">Sexo</label>
+      <select name="sexo" class="form-control">
+        <option value="">Todos</option>
+        <option value="M" {% if filtros.sexo=='M' %}selected{% endif %}>Masculino</option>
+        <option value="F" {% if filtros.sexo=='F' %}selected{% endif %}>Feminino</option>
+      </select>
+    </div>
+    <div class="form-group" style="min-width:100px">
+      <label class="form-label">Idade mín.</label>
+      <input type="number" name="idade_min" class="form-control" value="{{ filtros.idade_min }}" placeholder="0">
+    </div>
+    <div class="form-group" style="min-width:100px">
+      <label class="form-label">Idade máx.</label>
+      <input type="number" name="idade_max" class="form-control" value="{{ filtros.idade_max }}" placeholder="150">
+    </div>
+    <div class="form-group" style="min-width:160px">
+      <label class="form-label">Município</label>
+      <input type="text" name="municipio" class="form-control" value="{{ filtros.municipio }}">
+    </div>
+    <div class="form-group" style="min-width:120px">
+      <label class="form-label">CNS</label>
+      <select name="tem_cns" class="form-control">
+        <option value="">Todos</option>
+        <option value="1" {% if filtros.tem_cns=='1' %}selected{% endif %}>Com CNS</option>
+        <option value="0" {% if filtros.tem_cns=='0' %}selected{% endif %}>Sem CNS</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <a href="{{ url_for('relatorios.pacientes') }}" class="btn btn-secondary">Limpar</a>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-header">
+    <h3>Resultado</h3>
+    <span style="font-size:.82rem;color:var(--cinza-400);margin-left:8px">
+      {{ pacientes|length }} paciente(s)
+    </span>
+  </div>
+  <div class="table-wrapper">
+    <table class="tabela">
+      <thead>
+        <tr><th>Nome</th><th>CNS</th><th>CPF</th><th>Nascimento</th><th>Idade</th><th>Sexo</th><th>Município</th><th>Telefone</th></tr>
+      </thead>
+      <tbody>
+        {% for p in pacientes %}
+        <tr>
+          <td><a href="{{ url_for('pacientes.perfil', id=p.id) }}" class="fw-500">{{ p.nome_exibicao }}</a></td>
+          <td class="font-mono" style="font-size:.8rem">{{ p.cns or '—' }}</td>
+          <td class="font-mono" style="font-size:.8rem">{{ p.cpf or '—' }}</td>
+          <td class="font-mono" style="font-size:.8rem">{{ p.data_nascimento.strftime('%d/%m/%Y') }}</td>
+          <td>{{ p.idade }}</td>
+          <td>{{ 'M' if p.sexo=='M' else 'F' if p.sexo=='F' else 'I' }}</td>
+          <td style="font-size:.84rem">{{ p.municipio or '—' }}{% if p.uf %}/{{ p.uf }}{% endif %}</td>
+          <td style="font-size:.84rem">{{ p.telefone or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--cinza-400)">Nenhum resultado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

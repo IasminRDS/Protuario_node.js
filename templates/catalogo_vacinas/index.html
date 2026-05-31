@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Catálogo de Vacinas{% endblock %}
+{% block page_title %}Catálogo de Vacinas{% endblock %}
+{% block content %}
+<div style="max-width:1000px;margin:0 auto;display:grid;gap:12px;">
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{{ url_for('catalogo_vacinas.novo') }}" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input class="form-control" name="codigo" placeholder="Código (VAC001)">
+        <input class="form-control" name="nome" placeholder="Nome da vacina" style="min-width:220px;">
+        <input class="form-control" name="doses" placeholder="Esquema de doses" style="min-width:180px;">
+        <button class="btn btn-primary">Adicionar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="get" style="margin-bottom:10px;">
+        <input class="form-control" name="q" value="{{ q or '' }}" placeholder="Buscar por nome/código">
+      </form>
+      <table class="tabela">
+        <thead><tr><th>#</th><th>Código</th><th>Nome</th><th>Doses</th><th>Ativo</th></tr></thead>
+        <tbody>
+          {% for i in itens %}
+          <tr>
+            <td>{{ i.id }}</td>
+            <td>{{ i.codigo }}</td>
+            <td>{{ i.nome }}</td>
+            <td>{{ i.doses }}</td>
+            <td>{{ "Sim" if i.ativo else "Não" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-muted">Catálogo vazio.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

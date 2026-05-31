@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Gerar Atestado{% endblock %}
+{% block page_title %}Gerar Atestado Médico{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('pacientes.perfil', id=paciente.id) }}" class="btn btn-secondary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Voltar
+  </a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:560px">
+  <div class="card mb-16" style="border-left:4px solid var(--sus-azul)">
+    <div class="card-body" style="padding:14px 20px">
+      <div style="font-weight:600">{{ paciente.nome_exibicao }}</div>
+      <div style="font-size:.8rem;color:var(--cinza-500)">
+        {{ paciente.idade }} anos · CNS {{ paciente.cns or '—' }}
+      </div>
+    </div>
+  </div>
+
+  <form method="POST" target="_blank">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="card">
+      <div class="card-header">
+        <svg width="17" height="17" fill="none" stroke="var(--sus-azul)" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <h3>Dados do Atestado</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-grid form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Dias de afastamento <span class="obrigatorio">*</span></label>
+            <input type="number" name="dias" class="form-control" value="1" min="1" max="365" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CID-10 (opcional)</label>
+            <input type="text" name="cid" class="form-control font-mono"
+                   placeholder="Ex: J06.9" maxlength="10" style="text-transform:uppercase">
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label class="form-label">Observações (opcional)</label>
+            <textarea name="observacao" class="form-control" rows="3"
+                      placeholder="Restrições, recomendações..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer" style="display:flex;justify-content:flex-end;gap:12px">
+        <a href="{{ url_for('pacientes.perfil', id=paciente.id) }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+          </svg>
+          Gerar PDF
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,284 @@
+{% extends "base.html" %} {% block title %}Agenda{% endblock %} {% block
+page_title %}Agenda{% endblock %} {% block content %}
+<div class="card mb-16">
+  <div class="card-body">
+    <div id="agenda-msg" class="text-muted mb-16"></div>
+
+    <div
+      style="
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 10px;
+        margin-bottom: 12px;
+      "
+    >
+      <div>
+        <label for="filtro-data" class="form-label">Data</label>
+        <input id="filtro-data" type="date" class="form-control" />
+      </div>
+      <div>
+        <label for="filtro-status" class="form-label">Status</label>
+        <select id="filtro-status" class="form-control">
+          <option value="">Todos</option>
+          <option value="agendado">Agendado</option>
+          <option value="confirmado">Confirmado</option>
+          <option value="em_atendimento">Em atendimento</option>
+          <option value="finalizado">Finalizado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div>
+        <label for="filtro-paciente" class="form-label">Paciente</label>
+        <input
+          id="filtro-paciente"
+          type="text"
+          class="form-control"
+          placeholder="Nome do paciente"
+        />
+      </div>
+      <div style="display: flex; align-items: end">
+        <button id="btn-recarregar" class="btn btn-secondary">
+          Recarregar
+        </button>
+      </div>
+    </div>
+
+    <hr style="border: none; border-top: 1px solid #d9e2f0; margin: 12px 0" />
+
+    <form
+      id="form-novo-evento"
+      style="
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr auto;
+        gap: 8px;
+        align-items: end;
+        margin-bottom: 12px;
+      "
+    >
+      <div>
+        <label for="novo-paciente" class="form-label">Paciente</label>
+        <input
+          id="novo-paciente"
+          class="form-control"
+          type="text"
+          required
+          placeholder="Nome completo"
+        />
+      </div>
+      <div>
+        <label for="novo-data" class="form-label">Data</label>
+        <input id="novo-data" class="form-control" type="date" required />
+      </div>
+      <div>
+        <label for="novo-hora" class="form-label">Hora</label>
+        <input id="novo-hora" class="form-control" type="time" required />
+      </div>
+      <div>
+        <label for="novo-tipo" class="form-label">Tipo</label>
+        <select id="novo-tipo" class="form-control">
+          <option value="consulta">Consulta</option>
+          <option value="retorno">Retorno</option>
+          <option value="exame">Exame</option>
+          <option value="procedimento">Procedimento</option>
+        </select>
+      </div>
+      <div>
+        <label for="novo-observacao" class="form-label">Observação</label>
+        <input
+          id="novo-observacao"
+          class="form-control"
+          type="text"
+          placeholder="Opcional"
+        />
+      </div>
+      <button type="submit" class="btn btn-primary">Adicionar</button>
+    </form>
+
+    <div class="table-wrapper">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Paciente</th>
+            <th>Data</th>
+            <th>Hora</th>
+            <th>Tipo</th>
+            <th>Status</th>
+            <th>Observação</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-agenda-body">
+          <tr>
+            <td colspan="8" class="text-muted">Carregando...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const elMsg = document.getElementById("agenda-msg");
+    const tbody = document.getElementById("tabela-agenda-body");
+
+    const filtroData = document.getElementById("filtro-data");
+    const filtroStatus = document.getElementById("filtro-status");
+    const filtroPaciente = document.getElementById("filtro-paciente");
+    const btnRecarregar = document.getElementById("btn-recarregar");
+
+    const form = document.getElementById("form-novo-evento");
+    const novoPaciente = document.getElementById("novo-paciente");
+    const novoData = document.getElementById("novo-data");
+    const novoHora = document.getElementById("novo-hora");
+    const novoTipo = document.getElementById("novo-tipo");
+    const novoObs = document.getElementById("novo-observacao");
+
+    function msg(texto, tipo) {
+      elMsg.textContent = texto || "";
+      elMsg.style.color =
+        tipo === "erro" ? "#b02a37" : tipo === "ok" ? "#1f8f4c" : "#6c819f";
+    }
+
+    function badge(status) {
+      const cor =
+        {
+          agendado: "#1f5ab0",
+          confirmado: "#1f8f4c",
+          em_atendimento: "#9a6b00",
+          finalizado: "#34495e",
+          cancelado: "#b02a37",
+        }[status] || "#6c757d";
+      return `<span style="display:inline-block;padding:4px 8px;border-radius:999px;background:${cor};color:#fff;font-size:12px;">${status}</span>`;
+    }
+
+    function linha(a) {
+      return `
+      <tr>
+        <td>${a.id}</td>
+        <td>${a.paciente_nome || ""}</td>
+        <td>${a.data || ""}</td>
+        <td>${a.hora || ""}</td>
+        <td>${a.tipo || ""}</td>
+        <td>${badge(a.status || "")}</td>
+        <td>${a.observacao || ""}</td>
+        <td>
+          <select class="form-control js-status" data-id="${a.id}">
+            <option value="">Alterar...</option>
+            <option value="agendado">Agendado</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="em_atendimento">Em atendimento</option>
+            <option value="finalizado">Finalizado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </td>
+      </tr>
+    `;
+    }
+
+    async function carregar() {
+      const qs = new URLSearchParams();
+      if (filtroData.value) qs.append("data", filtroData.value);
+      if (filtroStatus.value) qs.append("status", filtroStatus.value);
+      if (filtroPaciente.value.trim())
+        qs.append("paciente", filtroPaciente.value.trim());
+
+      try {
+        msg("Carregando agenda...");
+        const r = await fetch(`/agenda/api/eventos?${qs.toString()}`);
+        const data = await r.json();
+
+        if (!r.ok) return msg(data.erro || "Erro ao carregar agenda.", "erro");
+
+        if (!Array.isArray(data) || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" class="text-muted">Nenhum compromisso encontrado.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.map(linha).join("");
+        }
+
+        msg("");
+      } catch (e) {
+        msg("Falha de comunicação ao carregar agenda.", "erro");
+      }
+    }
+
+    async function criar(ev) {
+      ev.preventDefault();
+      const payload = {
+        paciente_nome: (novoPaciente.value || "").trim(),
+        data: novoData.value || "",
+        hora: novoHora.value || "",
+        tipo: novoTipo.value || "consulta",
+        observacao: (novoObs.value || "").trim(),
+        status: "agendado",
+      };
+
+      if (!payload.paciente_nome || !payload.data || !payload.hora) {
+        return msg("Paciente, data e hora são obrigatórios.", "erro");
+      }
+
+      try {
+        msg("Criando compromisso...");
+        const r = await fetch("/agenda/api/eventos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+
+        if (!r.ok || !data.ok)
+          return msg(data.erro || "Erro ao criar compromisso.", "erro");
+
+        form.reset();
+        msg(data.msg || "Compromisso criado com sucesso.", "ok");
+        await carregar();
+      } catch (e) {
+        msg("Falha de comunicação ao criar compromisso.", "erro");
+      }
+    }
+
+    async function atualizarStatus(id, status) {
+      if (!status) return;
+      try {
+        const r = await fetch(`/agenda/api/eventos/${id}/status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        const data = await r.json();
+
+        if (!r.ok || !data.ok)
+          return msg(data.erro || "Erro ao atualizar status.", "erro");
+
+        msg(data.msg || "Status atualizado.", "ok");
+        await carregar();
+      } catch (e) {
+        msg("Falha de comunicação ao atualizar status.", "erro");
+      }
+    }
+
+    filtroData.addEventListener("change", carregar);
+    filtroStatus.addEventListener("change", carregar);
+    filtroPaciente.addEventListener("input", () => {
+      clearTimeout(window.__agendaDebounce);
+      window.__agendaDebounce = setTimeout(carregar, 350);
+    });
+    btnRecarregar.addEventListener("click", carregar);
+    form.addEventListener("submit", criar);
+
+    document.addEventListener("change", (ev) => {
+      const t = ev.target;
+      if (t && t.classList.contains("js-status")) {
+        atualizarStatus(t.dataset.id, t.value);
+      }
+    });
+
+    const today = new Date().toISOString().slice(0, 10);
+    filtroData.value = today;
+    novoData.value = today;
+
+    carregar();
+  })();
+</script>
+{% endblock %}

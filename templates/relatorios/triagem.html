@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Triagem{% endblock %}
+{% block page_title %}Relatório de Triagem{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('relatorios.index') }}" class="btn btn-secondary">Voltar</a>
+  <a href="{{ request.url }}&exportar=csv" class="btn btn-secondary">Exportar CSV</a>
+{% endblock %}
+
+{% block content %}
+<form method="GET" class="card mb-20">
+  <div class="card-body" style="display:flex;gap:14px;align-items:flex-end">
+    <div class="form-group">
+      <label class="form-label">Data inicial</label>
+      <input type="date" name="data_ini" class="form-control" value="{{ data_ini }}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data final</label>
+      <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+
+{% if por_cor %}
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+  {% for cor, hex_cor, _ in [
+    ('vermelho','#C0392B',''), ('laranja','#E67E22',''), ('amarelo','#F1C40F',''),
+    ('verde','#27AE60',''), ('azul','#2980B9','')
+  ] %}
+  {% if por_cor.get(cor, 0) > 0 %}
+  <div style="background:var(--branco);border:1px solid var(--cinza-200);border-left:4px solid {{ hex_cor }};
+              border-radius:var(--raio);padding:10px 16px;min-width:120px;text-align:center">
+    <div style="font-size:1.4rem;font-weight:700;color:{{ hex_cor }}">{{ por_cor.get(cor, 0) }}</div>
+    <div style="font-size:.72rem;color:var(--cinza-500)">{{ cor|capitalize }}</div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header"><h3>{{ triagens|length }} triagem(ns)</h3></div>
+  <div class="table-wrapper">
+    <table class="tabela">
+      <thead><tr><th>Data/Hora</th><th>Paciente</th><th>Classificação</th><th>Queixa</th><th>PA</th><th>Temp.</th><th>SpO₂</th><th>Dor</th></tr></thead>
+      <tbody>
+        {% for t in triagens %}
+        {% set label, hex_cor, tempo = t.cor_info %}
+        <tr>
+          <td class="font-mono" style="font-size:.8rem">{{ t.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td><a href="{{ url_for('pacientes.perfil', id=t.paciente_id) }}" class="fw-500">{{ t.paciente.nome_exibicao }}</a></td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:5px">
+              <span style="width:8px;height:8px;background:{{ hex_cor }};border-radius:50%"></span>
+              <span style="font-size:.82rem;font-weight:500;color:{{ hex_cor }}">{{ label }}</span>
+            </span>
+          </td>
+          <td style="font-size:.84rem;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.queixa_principal or '—' }}</td>
+          <td class="font-mono" style="font-size:.8rem">{{ t.pressao_arterial or '—' }}</td>
+          <td class="font-mono" style="font-size:.8rem">{% if t.temperatura %}{{ '%.1f'|format(t.temperatura) }}°C{% else %}—{% endif %}</td>
+          <td class="font-mono" style="font-size:.8rem">{% if t.saturacao_o2 %}{{ t.saturacao_o2|int }}%{% else %}—{% endif %}</td>
+          <td>{% if t.dor_escala is not none %}<span class="badge badge-{% if t.dor_escala>=8 %}vermelho{% elif t.dor_escala>=5 %}amarelo{% else %}verde{% endif %}">{{ t.dor_escala }}/10</span>{% else %}—{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--cinza-400)">Nenhum resultado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

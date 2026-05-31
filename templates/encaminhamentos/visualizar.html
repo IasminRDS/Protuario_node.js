@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Encaminhamento #{{ enc.id }}{% endblock %}
+{% block page_title %}Encaminhamento #{{ enc.id }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('encaminhamentos.lista_paciente', paciente_id=enc.paciente_id) }}" class="btn btn-secondary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Voltar
+  </a>
+  <a href="{{ url_for('pdf.encaminhamento', id=enc.id) }}" target="_blank" class="btn btn-secondary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+    </svg>
+    PDF
+  </a>
+{% endblock %}
+
+{% block content %}
+
+{% set slabel, scor = enc.status_label %}
+{% set plabel, pcor = enc.prioridade_label %}
+
+<div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start">
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="card-header">
+        <h3>{{ enc.especialidade }}</h3>
+        <span class="badge badge-{{ pcor }} ms-auto">{{ plabel }}</span>
+        <span class="badge badge-{{ scor }}">{{ slabel }}</span>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          {% macro info(label, val) %}
+          <div>
+            <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:.06em;color:var(--cinza-500);margin-bottom:3px">{{ label }}</div>
+            <div style="font-size:.88rem;font-weight:500">{{ val or '—' }}</div>
+          </div>
+          {% endmacro %}
+          {{ info('Paciente', enc.paciente.nome_exibicao) }}
+          {{ info('Médico solicitante', enc.medico.nome if enc.medico else '—') }}
+          {{ info('Serviço destino', enc.servico_destino) }}
+          {{ info('CID-10', enc.cid) }}
+          {{ info('Solicitado em', enc.data_solicitacao.strftime('%d/%m/%Y')) }}
+          {{ info('Agendado para', enc.data_agendada.strftime('%d/%m/%Y %H:%M') if enc.data_agendada else '—') }}
+        </div>
+
+        {% if enc.hipotese_diagnostica %}
+        <div style="margin-bottom:12px">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;
+                      letter-spacing:.06em;color:var(--cinza-500);margin-bottom:4px">Hipótese diagnóstica</div>
+          <div style="font-size:.88rem">{{ enc.hipotese_diagnostica }}</div>
+        </div>
+        {% endif %}
+
+        <div>
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;
+                      letter-spacing:.06em;color:var(--cinza-500);margin-bottom:6px">Motivo</div>
+          <div style="font-size:.9rem;line-height:1.7;white-space:pre-wrap">{{ enc.motivo }}</div>
+        </div>
+
+        {% if enc.observacoes %}
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--cinza-100)">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;
+                      letter-spacing:.06em;color:var(--cinza-500);margin-bottom:4px">Observações</div>
+          <div style="font-size:.88rem;line-height:1.6">{{ enc.observacoes }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if enc.retorno_info %}
+    <div class="card" style="border-left:4px solid var(--sus-verde)">
+      <div class="card-header"><h3>Contra-referência / Retorno</h3></div>
+      <div class="card-body">
+        <div style="font-size:.9rem;line-height:1.7;white-space:pre-wrap">{{ enc.retorno_info }}</div>
+        {% if enc.data_realizacao %}
+        <div style="margin-top:10px;font-size:.78rem;color:var(--cinza-400)">
+          Realizado em {{ enc.data_realizacao.strftime('%d/%m/%Y') }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Ações -->
+  {% if enc.status not in ('realizado','cancelado') %}
+  <div style="position:sticky;top:72px">
+    <div class="card">
+      <div class="card-header"><h3>Atualizar Status</h3></div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('encaminhamentos.atualizar_status', id=enc.id) }}">
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Novo status</label>
+            <select name="status" class="form-control">
+              {% for val, (label, _) in enc.STATUS_LABELS.items() %}
+                {% if val != enc.status %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">Contra-referência (se realizado)</label>
+            <textarea name="retorno_info" class="form-control" rows="4"
+                      placeholder="Resultado da consulta, informações de retorno..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+            Atualizar
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

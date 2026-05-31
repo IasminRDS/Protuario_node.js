@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Triagens — {{ paciente.nome_exibicao }}{% endblock %}
+{% block page_title %}Histórico de Triagens{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('pacientes.perfil', id=paciente.id) }}" class="btn btn-secondary">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Voltar
+  </a>
+  <a href="{{ url_for('triagem.nova', paciente_id=paciente.id) }}" class="btn btn-primary">
+    Nova Triagem
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-16" style="border-left:4px solid var(--sus-azul)">
+  <div class="card-body" style="padding:14px 20px">
+    <div style="font-weight:600">{{ paciente.nome_exibicao }}</div>
+    <div style="font-size:.8rem;color:var(--cinza-500)">
+      {{ paciente.idade }} anos · {{ triagens|length }} triagem(ns) registrada(s)
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Data/Hora</th>
+          <th>Classificação</th>
+          <th>Queixa</th>
+          <th>PA</th>
+          <th>Temp.</th>
+          <th>SpO₂</th>
+          <th>Realizado por</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in triagens %}
+        {% set label_cor, hex_cor, tempo = t.cor_info %}
+        <tr>
+          <td class="font-mono" style="font-size:.82rem">
+            {{ t.criado_em.strftime('%d/%m/%Y %H:%M') }}
+          </td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:6px">
+              <span style="width:10px;height:10px;background:{{ hex_cor }};
+                           border-radius:50%;display:inline-block"></span>
+              <span style="font-size:.82rem;font-weight:600;color:{{ hex_cor }}">
+                {{ label_cor }}
+              </span>
+            </span>
+          </td>
+          <td style="font-size:.84rem;max-width:200px;
+                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ t.queixa_principal or '—' }}
+          </td>
+          <td class="font-mono" style="font-size:.8rem">{{ t.pressao_arterial or '—' }}</td>
+          <td class="font-mono" style="font-size:.8rem">
+            {% if t.temperatura %}{{ '%.1f'|format(t.temperatura) }}°C{% else %}—{% endif %}
+          </td>
+          <td class="font-mono" style="font-size:.8rem">
+            {% if t.saturacao_o2 %}{{ t.saturacao_o2|int }}%{% else %}—{% endif %}
+          </td>
+          <td style="font-size:.82rem">{{ t.responsavel.nome if t.responsavel else '—' }}</td>
+          <td>
+            <a href="{{ url_for('triagem.visualizar', id=t.id) }}"
+               class="btn btn-sm btn-secondary">Ver</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align:center;padding:40px;color:var(--cinza-400)">
+            Nenhuma triagem registrada.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

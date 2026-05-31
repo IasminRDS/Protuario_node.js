@@ -1,0 +1,321 @@
+﻿{% extends "base.html" %} {% block title %}Gestão de Leitos{% endblock %} {%
+block page_title %}Leitos{% endblock %} {% block content %}
+<div class="card mb-16">
+  <div class="card-body">
+    <div id="leitos-msg" class="text-muted mb-16"></div>
+
+    <!-- Barra única: Unidade | Setor | Número | Tipo | Botão -->
+    <form id="form-novo-leito" class="leitos-toolbar">
+      <div class="campo">
+        <label for="filtro-unidade" class="form-label">Unidade</label>
+        <select id="filtro-unidade" class="form-control">
+          <option value="">Todas as unidades</option>
+          {% for u in unidades %}
+          <option
+            value="{{ u.id }}"
+            data-user-unidade="{{ current_user.unidade_id or '' }}"
+          >
+            {{ u.nome }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="filtro-setor" class="form-label">Setor</label>
+        <select id="filtro-setor" class="form-control" required>
+          <option value="">Selecione</option>
+          {% for s in setores %}
+          <option value="{{ s.id }}">{{ s.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="novo-numero" class="form-label">Número</label>
+        <input
+          id="novo-numero"
+          class="form-control"
+          type="text"
+          placeholder="Ex: UTI-01"
+          required
+        />
+      </div>
+
+      <div class="campo campo-tipo">
+        <label for="novo-tipo" class="form-label">Tipo</label>
+        <select id="novo-tipo" class="form-control">
+          <option value="comum">Comum</option>
+          <option value="isolamento">Isolamento</option>
+          <option value="uti">UTI</option>
+        </select>
+      </div>
+
+      <div class="acoes">
+        <button type="submit" class="btn btn-primary">Adicionar</button>
+      </div>
+    </form>
+
+    <div class="table-wrapper">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Número</th>
+            <th>Setor</th>
+            <th>Tipo</th>
+            <th>Status</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-leitos-body">
+          <tr>
+            <td colspan="6" class="text-muted">Carregando...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  .leitos-toolbar {
+    display: grid;
+    grid-template-columns: 1.2fr 1.2fr 1fr 0.8fr auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 14px;
+  }
+
+  .leitos-toolbar .campo {
+    min-width: 0;
+  }
+
+  .leitos-toolbar .campo .form-control {
+    width: 100%;
+  }
+
+  .leitos-toolbar .acoes {
+    display: flex;
+    justify-content: flex-end;
+    align-items: end;
+  }
+
+  .leitos-toolbar .acoes .btn {
+    height: 36px;
+    min-width: 110px;
+  }
+
+  @media (max-width: 1200px) {
+    .leitos-toolbar {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .leitos-toolbar .acoes {
+      justify-content: flex-start;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    const elUnidade = document.getElementById("filtro-unidade");
+    const elSetor = document.getElementById("filtro-setor");
+    const elTabela = document.getElementById("tabela-leitos-body");
+    const elMsg = document.getElementById("leitos-msg");
+
+    const formNovo = document.getElementById("form-novo-leito");
+    const inpNumero = document.getElementById("novo-numero");
+    const inpTipo = document.getElementById("novo-tipo");
+
+    function setDefaultUnidade() {
+      const opt = elUnidade.querySelector("option[data-user-unidade]");
+      if (!opt) return;
+      const uid = (opt.getAttribute("data-user-unidade") || "").trim();
+      if (uid) elUnidade.value = uid;
+    }
+
+    function msg(texto, tipo) {
+      elMsg.textContent = texto || "";
+      elMsg.style.color =
+        tipo === "erro" ? "#b02a37" : tipo === "ok" ? "#1f8f4c" : "#6c819f";
+    }
+
+    function badgeStatus(status) {
+      const cor =
+        {
+          livre: "#1f8f4c",
+          ocupado: "#b02a37",
+          reservado: "#9a6b00",
+          em_higienizacao: "#6c757d",
+          interditado: "#343a40",
+          bloqueado: "#343a40",
+        }[status] || "#6c757d";
+
+      return `<span style="display:inline-block;padding:4px 8px;border-radius:999px;background:${cor};color:#fff;font-size:12px;">${status || ""}</span>`;
+    }
+
+    function linha(l) {
+      return `
+      <tr>
+        <td>${l.id || ""}</td>
+        <td>${l.numero || ""}</td>
+        <td>${l.setor || ""}</td>
+        <td>${l.tipo || ""}</td>
+        <td>${badgeStatus(l.status || "")}</td>
+        <td>
+          <select class="form-control js-status" data-id="${l.id}">
+            <option value="">Alterar...</option>
+            <option value="livre">Livre</option>
+            <option value="ocupado">Ocupado</option>
+            <option value="reservado">Reservado</option>
+            <option value="em_higienizacao">Em higienização</option>
+            <option value="interditado">Interditado</option>
+            <option value="bloqueado">Bloqueado</option>
+          </select>
+        </td>
+      </tr>
+    `;
+    }
+
+    async function carregar() {
+      const qs = new URLSearchParams();
+
+      // Evita erro 500 no backend atual: filtra por setor por enquanto
+      if (elSetor.value) qs.append("setor_id", elSetor.value);
+      // Quando backend estiver estável com unidade:
+      // if (elUnidade.value) qs.append("unidade_id", elUnidade.value);
+
+      try {
+        msg("Carregando...");
+        const r = await fetch(`/internacao/api/leitos?${qs.toString()}`);
+        if (!r.ok) {
+          const txt = await r.text();
+          console.error("GET /internacao/api/leitos erro:", r.status, txt);
+          return msg(`Erro ao carregar (${r.status})`, "erro");
+        }
+
+        const data = await r.json();
+        elTabela.innerHTML =
+          Array.isArray(data) && data.length
+            ? data.map(linha).join("")
+            : `<tr><td colspan="6" class="text-muted">Nenhum leito.</td></tr>`;
+
+        msg("");
+      } catch (e) {
+        console.error(e);
+        msg("Falha de comunicação", "erro");
+      }
+    }
+
+    async function criar(ev) {
+      ev.preventDefault();
+
+      if (!elSetor.value) {
+        return msg("Selecione um setor.", "erro");
+      }
+
+      const payload = {
+        numero: (inpNumero.value || "").trim(),
+        tipo: inpTipo.value || "comum",
+        setor_id: elSetor.value,
+        status: "livre",
+      };
+
+      if (!payload.numero) return msg("Número obrigatório.", "erro");
+
+      try {
+        const r = await fetch("/internacao/api/leitos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.ok) {
+          return msg(data.erro || "Erro ao criar.", "erro");
+        }
+
+        formNovo.reset();
+        // mantém filtros
+        setDefaultUnidade();
+        msg("Leito criado com sucesso.", "ok");
+        await carregar();
+      } catch (e) {
+        console.error(e);
+        msg("Falha de comunicação ao criar.", "erro");
+      }
+    }
+
+    async function trocarStatus(id, status) {
+      if (!status) return;
+
+      try {
+        const r = await fetch(`/internacao/api/leitos/${id}/status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.ok) {
+          return msg(data.erro || "Erro ao atualizar status.", "erro");
+        }
+
+        msg("Status atualizado.", "ok");
+        await carregar();
+      } catch (e) {
+        console.error(e);
+        msg("Falha de comunicação ao atualizar status.", "erro");
+      }
+    }
+
+    setDefaultUnidade();
+
+    elSetor.addEventListener("change", carregar);
+    elUnidade.addEventListener("change", carregar);
+    formNovo.addEventListener("submit", criar);
+
+    document.addEventListener("change", function (ev) {
+      const t = ev.target;
+      if (t && t.classList.contains("js-status")) {
+        trocarStatus(t.dataset.id, t.value);
+      }
+    });
+
+    carregar();
+  })();
+</script>
+{% endblock %}
+
+<style>
+  .leitos-toolbar {
+    display: grid;
+    grid-template-columns: 1.2fr 1.2fr 1fr 0.8fr auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 14px;
+  }
+  .leitos-toolbar .campo {
+    min-width: 0;
+  }
+  .leitos-toolbar .campo .form-control {
+    width: 100%;
+  }
+  .leitos-toolbar .acoes {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .leitos-toolbar .acoes .btn {
+    height: 34px;
+    min-width: 110px;
+  }
+  @media (max-width: 1200px) {
+    .leitos-toolbar {
+      grid-template-columns: 1fr 1fr;
+    }
+    .leitos-toolbar .acoes {
+      justify-content: flex-start;
+    }
+  }
+</style>
