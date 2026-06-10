@@ -1,3 +1,32 @@
-node_modules
-.next
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Ambiente e segredos
 .env
+.env.*
+
+# Banco de dados local
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Editor
+.vscode/
+.idea/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node (caso use futuramente)
+node_modules/
+.next/

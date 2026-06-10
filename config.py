@@ -16,7 +16,7 @@ def _to_int(value: str | None, default: int) -> int:
 
 class Config:
     # Flask / Segurança
-    SECRET_KEY = os.getenv("SECRET_KEY", "chave-secreta-prontuario-estadual-super-segura")
+    SECRET_KEY = os.environ["SECRET_KEY"]
     WTF_CSRF_ENABLED = _to_bool(os.getenv("WTF_CSRF_ENABLED"), True)
     
     # Segurança de Cookies

@@ -2,6 +2,8 @@ import os
 from flask import Flask
 from dotenv import load_dotenv
 
+load_dotenv()
+
 # Importa as instâncias das extensões
 from extensions import db, csrf, migrate, login_manager
 from config import get_config_class
@@ -44,6 +46,8 @@ def create_app():
     try:
         from routes.importacao import importacao_bp
     except ImportError:
+        import warnings
+        warnings.warn("routes.importacao não encontrado, usando routes.importar")
         from routes.importar import importacao_bp
 
     blueprints = [
