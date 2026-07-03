@@ -1,0 +1,46 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   DESIGN SYSTEM — tokens (Tailwind v4 @theme)
+   Cores de chrome + cores semânticas de ESTADO CLÍNICO.
+   ============================================================ */
+@theme {
+  /* Chrome do sistema */
+  --color-clinic-bg: #f1f5f9;
+  --color-clinic-surface: #ffffff;
+  --color-clinic-border: #e2e8f0;
+  --color-clinic-primary: #0d6ea3;
+  --color-clinic-primary-dark: #0b587f;
+  --color-clinic-accent: #0ea5a5;
+
+  /* Estado clínico do paciente (usado por StatusBadge / FSM) */
+  --color-status-registered: #64748b; /* slate  */
+  --color-status-triage: #d97706; /* amber  */
+  --color-status-waiting: #2563eb; /* blue   */
+  --color-status-attendance: #0d9488; /* teal   */
+  --color-status-observation: #7c3aed; /* violet */
+  --color-status-discharged: #059669; /* green  */
+
+  /* Classificação de risco (Manchester) */
+  --color-risk-blue: #2563eb;
+  --color-risk-green: #059669;
+  --color-risk-yellow: #d97706;
+  --color-risk-orange: #ea580c;
+  --color-risk-red: #dc2626;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-clinic-bg);
+  color: #0f172a;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+table {
+  font-variant-numeric: tabular-nums;
+}

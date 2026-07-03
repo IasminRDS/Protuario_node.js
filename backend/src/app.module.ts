@@ -1,0 +1,95 @@
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+
+import { validateEnv } from './infra/config/env';
+import { PrismaModule } from './infra/prisma/prisma.module';
+
+import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
+import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
+import { PermissionsGuard } from './shared/guards/permissions.guard';
+import { ResponseInterceptor } from './shared/interceptors/response.interceptor';
+import { TraceIdMiddleware } from './shared/observability/trace-id.middleware';
+import { TenantMiddleware } from './shared/tenant/tenant.middleware';
+import { EventBusModule } from './shared/events/event-bus.module';
+
+import { AuditoriaModule } from './modules/auditoria/auditoria.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { PacientesModule } from './modules/pacientes/pacientes.module';
+import { PerfisModule } from './modules/perfis/perfis.module';
+import { UsuariosModule } from './modules/usuarios/usuarios.module';
+import { OutboxModule } from './modules/outbox/outbox.module';
+import { MpiModule } from './modules/mpi/mpi.module';
+
+// FASE 1 — módulos clínicos
+import { ClinicalModule } from './modules/clinical/clinical.module';
+import { TriageModule } from './modules/triage/triage.module';
+import { EncountersModule } from './modules/encounters/encounters.module';
+import { PrescriptionsModule } from './modules/prescriptions/prescriptions.module';
+import { LocksModule } from './modules/locks/locks.module';
+import { ProntuarioModule } from './modules/prontuario/prontuario.module';
+import { FhirModule } from './infra/fhir/fhir.module';
+import { HospitalsModule } from './modules/hospitals/hospitals.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+    }),
+
+    // Melhor prática: usar ConfigService ao invés de process.env direto
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: config.get<number>('THROTTLE_TTL', 60),
+          limit: config.get<number>('THROTTLE_LIMIT', 100),
+        },
+      ],
+    }),
+
+    PrismaModule,
+    EventBusModule, // backbone de eventos (SNPE)
+    AuditoriaModule,
+    AuthModule,
+    PerfisModule,
+    UsuariosModule,
+    PacientesModule,
+
+    // SNPE — primeiro núcleo produtivo
+    OutboxModule,
+    MpiModule,
+
+    // FASE 1 — clínico
+    ClinicalModule,
+    TriageModule,
+    EncountersModule,
+    PrescriptionsModule,
+    LocksModule,
+    ProntuarioModule,
+    FhirModule, // interoperabilidade FHIR R4
+    HospitalsModule, // multi-tenancy (gestão de hospitais)
+  ],
+
+  providers: [
+    // IMPORTANTE: ordem NÃO é garantida aqui no Nest
+    // A lógica correta deve estar dentro dos Guards se houver dependência
+
+    // Autorização unificada: rate-limit -> autenticação -> permissões (única camada).
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard }, // RBAC institucional (roles→permissions)
+
+    { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+  ],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // TenantMiddleware primeiro: abre o AsyncLocalStorage que envolve toda a
+    // requisição (o JwtStrategy preenche o hospitalId depois). Em seguida traceId.
+    consumer.apply(TenantMiddleware, TraceIdMiddleware).forRoutes('*');
+  }
+}

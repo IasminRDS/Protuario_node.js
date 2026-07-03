@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pee2-postgres
+    environment:
+      POSTGRES_USER: prontuario
+      POSTGRES_PASSWORD: prontuario
+      POSTGRES_DB: prontuario_e2
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U prontuario -d prontuario_e2']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: pee2-redis
+    ports:
+      - '6379:6379'
+
+  api:
+    build: .
+    container_name: pee2-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://prontuario:prontuario@postgres:5432/prontuario_e2
+      JWT_ACCESS_SECRET: change-me-access
+      JWT_REFRESH_SECRET: change-me-refresh
+      CORS_ORIGINS: http://localhost:3001
+    ports:
+      - '3000:3000'
+    command: sh -c "npx prisma migrate deploy && node dist/src/main.js"
+
+volumes:
+  pgdata:

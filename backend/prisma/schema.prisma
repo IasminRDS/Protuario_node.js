@@ -1,0 +1,510 @@
+// ============================================================================
+// Prontuário Eletrônico E2 (PE-E2) — Modelo físico (Prisma / PostgreSQL)
+// Baseado no Cap. 25 do Documento de Arquitetura (dicionário de dados, seções
+// 299-326). Convenções: tabelas no singular, snake_case, PK "id", FKs
+// "<entidade>_id", soft delete via deleted_at, auditoria de campos
+// (created_at/by, updated_at/by, deleted_at/by).
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// SEGURANÇA / ACESSO
+// ---------------------------------------------------------------------------
+
+model Perfil {
+  id        BigInt   @id @default(autoincrement())
+  nome      String   @unique @db.VarChar(100) // Administrador, Medico, ...
+  descricao String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  usuarios Usuario[]
+
+  @@map("perfil")
+}
+
+model Usuario {
+  id               BigInt    @id @default(autoincrement())
+  nome             String    @db.VarChar(200)
+  login            String    @unique @db.VarChar(100)
+  senha            String    @db.VarChar(255) // hash Argon2 — nunca texto puro (RN-005/117)
+  email            String?   @db.VarChar(200)
+  perfilId         BigInt    @map("perfil_id")
+  hospitalId       String?   @map("hospital_id") @db.Uuid // tenant (hospital do usuário)
+  ativo            Boolean   @default(true)
+  refreshTokenHash String?   @map("refresh_token_hash") @db.VarChar(255)
+  loginAttempts    Int       @default(0) @map("login_attempts")
+
+  // auditoria de campos
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at") // soft delete (RN-005 / cap. 100)
+  createdBy BigInt?   @map("created_by")
+  updatedBy BigInt?   @map("updated_by")
+  deletedBy BigInt?   @map("deleted_by")
+
+  perfil            Perfil         @relation(fields: [perfilId], references: [id])
+  atendimentos      Atendimento[]  @relation("MedicoResponsavel")
+  agendas           Agenda[]       @relation("ProfissionalAgenda")
+  vacinacoes        Vacinacao[]    @relation("ProfissionalVacinacao")
+  movimentacoes     MovimentacaoEstoque[]
+  auditorias        Auditoria[]
+
+  @@index([nome])
+  @@index([deletedAt])
+  @@map("usuario")
+}
+
+// ---------------------------------------------------------------------------
+// CADASTRO — PACIENTE (núcleo do domínio)
+// ---------------------------------------------------------------------------
+
+model Paciente {
+  id             BigInt    @id @default(autoincrement())
+  nome           String    @db.VarChar(250)
+  cpf            String?   @unique @db.VarChar(14) // opcional/único (ver análise A1)
+  cns            String?   @unique @db.VarChar(30) // Cartão Nacional de Saúde
+  sexo           String    @db.Char(1) // CHECK ('M','F','O')
+  dataNascimento DateTime  @map("data_nascimento") @db.Date
+  telefone       String?   @db.VarChar(20)
+  email          String?   @db.VarChar(200)
+  endereco       String?   @db.Text
+
+  // Estado clínico (FSM): REGISTERED|IN_TRIAGE|WAITING_DOCTOR|IN_CONSULTATION|UNDER_OBSERVATION|DISCHARGED
+  status String @default("REGISTERED") @db.VarChar(30)
+
+  // Multi-tenancy híbrido: registro clínico por hospital, referenciando a
+  // identidade nacional (Cidadao/MPI). Isolamento por hospitalId.
+  hospitalId String? @map("hospital_id") @db.Uuid
+  cidadaoId  String? @map("cidadao_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at") // RN-009: não excluir com histórico clínico
+  createdBy BigInt?   @map("created_by")
+  updatedBy BigInt?   @map("updated_by")
+  deletedBy BigInt?   @map("deleted_by")
+
+  agendas      Agenda[]
+  triagens     Triagem[]
+  atendimentos Atendimento[]
+  prontuarios  Prontuario[]
+  internacoes  Internacao[]
+  vacinacoes   Vacinacao[]
+
+  @@index([nome])
+  @@index([deletedAt])
+  @@map("paciente")
+}
+
+// ---------------------------------------------------------------------------
+// ATENDIMENTO — Agenda, Triagem, Atendimento
+// ---------------------------------------------------------------------------
+
+model Agenda {
+  id             BigInt   @id @default(autoincrement())
+  pacienteId     BigInt   @map("paciente_id")
+  profissionalId BigInt   @map("profissional_id")
+  data           DateTime @db.Date
+  hora           DateTime @db.Time
+  status         String   @default("AGENDADA") @db.VarChar(30) // RN-012
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  paciente     Paciente @relation(fields: [pacienteId], references: [id])
+  profissional Usuario  @relation("ProfissionalAgenda", fields: [profissionalId], references: [id])
+
+  @@unique([profissionalId, data, hora], name: "uq_agenda_profissional_horario") // RN-011 sobreposição
+  @@index([data])
+  @@map("agenda")
+}
+
+model Triagem {
+  id            BigInt   @id @default(autoincrement())
+  pacienteId    BigInt   @map("paciente_id")
+  atendimentoId BigInt?  @map("atendimento_id")
+  temperatura   Decimal? @db.Decimal(4, 1)
+  pressao       String?  @db.VarChar(20)
+  peso          Decimal? @db.Decimal(5, 2)
+  altura        Decimal? @db.Decimal(4, 2)
+  saturacao     Decimal? @db.Decimal(5, 2)
+  frequencia    Int?
+  classificacao String?  @db.VarChar(30) // classificação de risco
+  observacoes   String?  @db.Text
+  hospitalId    String?  @map("hospital_id") @db.Uuid // tenant
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  paciente    Paciente     @relation(fields: [pacienteId], references: [id])
+  atendimento Atendimento? @relation(fields: [atendimentoId], references: [id])
+
+  @@map("triagem")
+}
+
+model Atendimento {
+  id         BigInt    @id @default(autoincrement())
+  pacienteId BigInt    @map("paciente_id")
+  medicoId   BigInt    @map("medico_id") // profissional responsável (RN-018)
+  data       DateTime  @default(now()) // startedAt
+  finishedAt DateTime? @map("finished_at")
+  tipo       String    @db.VarChar(50)
+  status     String    @default("ACTIVE") @db.VarChar(30) // ACTIVE|PAUSED|FINISHED|CANCELLED
+  hospitalId String?   @map("hospital_id") @db.Uuid // tenant
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  paciente    Paciente     @relation(fields: [pacienteId], references: [id])
+  medico      Usuario      @relation("MedicoResponsavel", fields: [medicoId], references: [id])
+  triagens    Triagem[]
+  prontuarios Prontuario[]
+  prescricoes Prescricao[]
+  exames      Exame[]
+
+  @@index([data])
+  @@index([status])
+  @@index([pacienteId])
+  @@map("atendimento")
+}
+
+// ---------------------------------------------------------------------------
+// ASSISTENCIAL — Prontuário, Prescrição
+// ---------------------------------------------------------------------------
+
+model Prontuario {
+  id            BigInt   @id @default(autoincrement())
+  atendimentoId BigInt   @map("atendimento_id")
+  pacienteId    BigInt   @map("paciente_id")
+  evolucao      String?  @db.Text
+  diagnostico   String?  @db.Text
+  hospitalId    String?  @map("hospital_id") @db.Uuid // tenant
+  createdAt     DateTime @default(now()) @map("created_at")
+  // Sem deleted_at: histórico permanente e imutável (RN-022/023).
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id])
+  paciente    Paciente    @relation(fields: [pacienteId], references: [id])
+
+  @@index([pacienteId])
+  @@map("prontuario")
+}
+
+model Prescricao {
+  id            BigInt   @id @default(autoincrement())
+  atendimentoId BigInt   @map("atendimento_id")
+  medicamento   String   @db.VarChar(250)
+  dosagem       String?  @db.VarChar(100)
+  frequencia    String?  @db.VarChar(100)
+  duracao       String?  @db.VarChar(100)
+  observacoes   String?  @db.Text
+  hospitalId    String?  @map("hospital_id") @db.Uuid // tenant
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id])
+
+  @@map("prescricao")
+}
+
+// ---------------------------------------------------------------------------
+// APOIO DIAGNÓSTICO — Exame
+// ---------------------------------------------------------------------------
+
+model Exame {
+  id              BigInt    @id @default(autoincrement())
+  atendimentoId   BigInt    @map("atendimento_id")
+  nome            String    @db.VarChar(200)
+  resultado       String?   @db.Text
+  status          String    @default("SOLICITADO") @db.VarChar(30)
+  dataSolicitacao DateTime  @default(now()) @map("data_solicitacao")
+  dataResultado   DateTime? @map("data_resultado")
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id])
+
+  @@index([status])
+  @@map("exame")
+}
+
+// ---------------------------------------------------------------------------
+// HOSPITALIZAÇÃO — Internação
+// ---------------------------------------------------------------------------
+
+model Internacao {
+  id         BigInt    @id @default(autoincrement())
+  pacienteId BigInt    @map("paciente_id")
+  leito      String    @db.VarChar(20)
+  entrada    DateTime  @default(now())
+  alta       DateTime?
+  status     String    @default("ATIVA") @db.VarChar(30) // RN-037
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  @@index([status])
+  @@map("internacao")
+}
+
+// ---------------------------------------------------------------------------
+// IMUNIZAÇÃO — Vacinação
+// ---------------------------------------------------------------------------
+
+model Vacinacao {
+  id             BigInt   @id @default(autoincrement())
+  pacienteId     BigInt   @map("paciente_id")
+  vacina         String   @db.VarChar(150)
+  lote           String   @db.VarChar(100) // RN-038 lote obrigatório
+  dataAplicacao  DateTime @map("data_aplicacao") @db.Date
+  profissionalId BigInt   @map("profissional_id") // RN-039
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  paciente     Paciente @relation(fields: [pacienteId], references: [id])
+  profissional Usuario  @relation("ProfissionalVacinacao", fields: [profissionalId], references: [id])
+
+  @@map("vacinacao")
+}
+
+// ---------------------------------------------------------------------------
+// LOGÍSTICA — Produto, Movimentação de Estoque
+// ---------------------------------------------------------------------------
+
+model Produto {
+  id        BigInt    @id @default(autoincrement())
+  codigo    String    @unique @db.VarChar(50)
+  descricao String    @db.VarChar(250)
+  unidade   String    @db.VarChar(20)
+  estoque   Decimal   @default(0) @db.Decimal(12, 3) // RN-041 nunca negativo
+  validade  DateTime? @db.Date
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  movimentacoes MovimentacaoEstoque[]
+
+  @@map("produto")
+}
+
+model MovimentacaoEstoque {
+  id            BigInt   @id @default(autoincrement())
+  produtoId     BigInt   @map("produto_id")
+  usuarioId     BigInt   @map("usuario_id")
+  tipo          String   @db.VarChar(20) // ENTRADA | SAIDA
+  quantidade    Decimal  @db.Decimal(12, 3) // CHECK > 0
+  dataMovimento DateTime @default(now()) @map("data_movimento")
+
+  produto Produto @relation(fields: [produtoId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([produtoId])
+  @@map("movimentacao_estoque")
+}
+
+// ---------------------------------------------------------------------------
+// AUDITORIA — append-only, imutável (RN-045/046, cap. 122-124)
+// ---------------------------------------------------------------------------
+
+model Auditoria {
+  id        BigInt   @id @default(autoincrement())
+  usuarioId BigInt?  @map("usuario_id")
+  modulo    String   @db.VarChar(100)
+  operacao  String   @db.VarChar(100)
+  objeto    String?  @db.VarChar(200)
+  resultado String?  @db.VarChar(50)
+  ip        String?  @db.VarChar(50)
+  hospitalId String? @map("hospital_id") @db.Uuid // tenant (auditoria por hospital)
+  // Enriquecimento LGPD (cap. 122-124)
+  entity    String?  @db.VarChar(100)
+  entityId  String?  @map("entity_id") @db.VarChar(100)
+  device    String?  @db.VarChar(255)
+  reason    String?  @db.Text
+  dataEvento DateTime @default(now()) @map("data_evento")
+  // Sem updated_at / deleted_at: registros nunca alterados ou removidos.
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([dataEvento])
+  @@index([modulo])
+  @@index([entity, entityId])
+  @@map("auditoria")
+}
+
+// ===========================================================================
+// SNPE — Lock de recurso (concorrência: prontuário aberto por 2 profissionais).
+// TTL via expiresAt; heartbeat renova; @@unique impede 2 locks do mesmo recurso.
+// ===========================================================================
+
+model ResourceLock {
+  id         String   @id @db.Uuid
+  resource   String   @db.VarChar(50) // ex.: "prontuario"
+  resourceId String   @map("resource_id") @db.VarChar(100)
+  holderId   BigInt   @map("holder_id")
+  holderName String   @map("holder_name") @db.VarChar(200)
+  hospitalId String?  @map("hospital_id") @db.Uuid // tenant
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([resource, resourceId], name: "uq_lock_resource")
+  @@index([expiresAt])
+  @@map("resource_lock")
+}
+
+// ===========================================================================
+// SNPE — MPI (Master Patient Index): identidade nacional única do cidadão.
+// cidadaoId (UUID v7) é a identidade federada; Paciente (regional) referencia-a.
+// ===========================================================================
+
+model Cidadao {
+  id             String   @id @db.Uuid // cidadaoId nacional (UUID v7)
+  cpf            String?  @unique @db.VarChar(14) // único quando presente
+  cns            String?  @db.VarChar(30) // pode haver histórico de múltiplos
+  nome           String   @db.VarChar(250)
+  nomeMae        String?  @map("nome_mae") @db.VarChar(250)
+  dataNascimento DateTime @map("data_nascimento") @db.Date
+  sexo           String?  @db.Char(1)
+  status         String   @default("ATIVO") @db.VarChar(20) // ATIVO|OBITO|UNIFICADO
+
+  // Impressão digital determinística (mantida por compat.); a fonte de verdade
+  // da identidade passou a ser a tabela cidadao_identity_key (multi-chave).
+  fingerprint String @unique
+
+  // Preenchido quando este registro é unificado a outro (merge determinístico).
+  mergedInto String? @map("merged_into") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([nome, dataNascimento]) // suporte ao matching heurístico
+  @@index([cns])
+  @@index([mergedInto])
+  @@map("cidadao")
+}
+
+// ===========================================================================
+// SNPE — Chaves de identidade do cidadão (resolução determinística multi-tier).
+// Cada chave (cpf:*, cns:*, demo:*) é GLOBALMENTE ÚNICA e aponta para um único
+// cidadaoId. Impede split identity: qualquer identificador compartilhado força a
+// resolução para o MESMO cidadão, inclusive sob concorrência.
+// ===========================================================================
+
+model CidadaoIdentityKey {
+  key       String   @id // ex.: "cpf:52998224725", "cns:...", "demo:..."
+  kind      String   @db.VarChar(10) // CPF | CNS | DEMO
+  cidadaoId String   @map("cidadao_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([cidadaoId])
+  @@map("cidadao_identity_key")
+}
+
+// ===========================================================================
+// SNPE — Sequência monotônica por agregado (ordenação por cidadaoId).
+// ===========================================================================
+
+model AggregateSequence {
+  aggregateId String @id @map("aggregate_id") @db.Uuid
+  seq         Int    @default(0)
+
+  @@map("aggregate_sequence")
+}
+
+// ===========================================================================
+// SNPE — Offset de consumidor por agregado. Base do consumo ORDERED +
+// EXACTLY-ONCE de efeito: um consumidor aplica um evento por agregado somente
+// se seq == lastSeq + 1 (gap => retry; seq <= lastSeq => já aplicado/replay).
+// ===========================================================================
+
+model ConsumerOffset {
+  consumer    String   @db.VarChar(150)
+  aggregateId String   @map("aggregate_id") @db.Uuid
+  lastSeq     Int      @map("last_seq")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@id([consumer, aggregateId])
+  @@map("consumer_offset")
+}
+
+// ===========================================================================
+// SNPE — Outbox Pattern: garante publicação de eventos sem perda (gravado na
+// MESMA transação do agregado). Um worker drena PENDING -> broker -> SENT.
+// ===========================================================================
+
+model OutboxEvent {
+  id           String    @id @db.Uuid
+  aggregateId  String    @map("aggregate_id") @db.Uuid // cidadaoId (partition key)
+  type         String    @db.VarChar(150)
+  payload      Json // envelope completo do evento (imutável)
+  partitionKey String    @map("partition_key") @db.VarChar(100) // = cidadaoId
+  status       String    @default("PENDING") @db.VarChar(20) // PENDING|PROCESSING|SENT|FAILED
+  attempts     Int       @default(0)
+  availableAt  DateTime  @default(now()) @map("available_at") // backoff de retry
+  claimedAt    DateTime? @map("claimed_at") // instante do claim (reaper de PROCESSING órfão)
+  lastError    String?   @map("last_error") @db.Text // visibilidade da falha (DLQ)
+  sentAt       DateTime? @map("sent_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([status, availableAt])
+  @@index([aggregateId])
+  @@index([createdAt])
+  @@map("outbox_event")
+}
+
+// ===========================================================================
+// SNPE — Idempotência de consumidores. UNIQUE(consumer, event_id) garante que
+// cada consumidor processe um evento no máximo uma vez (efeito exactly-once
+// sobre semântica de entrega at-least-once do Outbox).
+// ===========================================================================
+
+model ProcessedEvent {
+  consumer    String   @db.VarChar(150)
+  eventId     String   @map("event_id") @db.Uuid
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@id([consumer, eventId])
+  @@map("processed_event")
+}
+
+// ===========================================================================
+// MULTI-TENANCY — Hospital (tenant) e Unidade. Hierarquia:
+// Hospital → Unidades → Usuários → Pacientes → Atendimentos.
+// A identidade do cidadão (Cidadao/MPI) permanece NACIONAL (sem hospitalId).
+// ===========================================================================
+
+model Hospital {
+  id        String   @id @db.Uuid
+  nome      String   @db.VarChar(200)
+  cnes      String?  @unique @db.VarChar(20) // Cadastro Nacional de Estabelecimentos de Saúde
+  uf        String?  @db.Char(2)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  unidades Unidade[]
+
+  @@map("hospital")
+}
+
+model Unidade {
+  id         String   @id @db.Uuid
+  hospitalId String   @map("hospital_id") @db.Uuid
+  nome       String   @db.VarChar(200)
+  tipo       String?  @db.VarChar(50) // UBS, PA, HOSPITAL, ...
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@index([hospitalId])
+  @@map("unidade")
+}
