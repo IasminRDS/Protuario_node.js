@@ -62,3 +62,6 @@ A aplicação **legada em Flask (Python)** e o **scaffold Next.js da raiz** fora
 
 ## Segredos
 Nenhum segredo é versionado. Cada app tem seu `.env` (ignorado); os templates são `backend/.env.example` e `frontend/.env.local.example`.
+
+
+(Teste.1)
