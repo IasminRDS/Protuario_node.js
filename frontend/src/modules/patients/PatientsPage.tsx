@@ -8,6 +8,7 @@ import { StatusBadge } from '@/modules/shared/ui/StatusBadge';
 import { Modal } from '@/modules/shared/ui/Modal';
 import { Can } from '@/modules/shared/rbac/Can';
 import { PacienteForm } from '@/components/clinical/PacienteForm';
+import { AuditNotice } from '@/components/clinical/AuditNotice';
 import { usePatients } from './usePatients';
 import { PatientDrawer } from './PatientDrawer';
 import type { PatientView } from './types';
@@ -27,6 +28,7 @@ export function PatientsPage() {
   } = usePatients();
   const [selected, setSelected] = useState<PatientView | null>(null);
   const [creating, setCreating] = useState(false);
+  const [auditedMsg, setAuditedMsg] = useState<string | null>(null);
 
   const columns: Column<PatientView>[] = [
     {
@@ -67,6 +69,12 @@ export function PatientsPage() {
         }
       />
 
+      {auditedMsg && (
+        <div className="mb-3">
+          <AuditNotice>{auditedMsg}</AuditNotice>
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         rows={rows}
@@ -89,6 +97,8 @@ export function PatientsPage() {
           onCreated={() => {
             setCreating(false);
             reload();
+            setAuditedMsg('Paciente cadastrado — ação registrada em auditoria.');
+            setTimeout(() => setAuditedMsg(null), 6000);
           }}
         />
       </Modal>

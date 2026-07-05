@@ -8,6 +8,11 @@ import { Button } from '@/components/ui/primitives';
 import { usePermissions } from '@/modules/shared/rbac/usePermissions';
 import { useSoftLock } from '@/modules/shared/hooks/useSoftLock';
 import { allowedTransitions } from '@/modules/shared/clinical/patient-status';
+import {
+  ClinicalStateBadge,
+  QUARANTINE_TOOLTIP,
+} from '@/components/clinical/ClinicalStateBadge';
+import { AuditNotice } from '@/components/clinical/AuditNotice';
 import type { PatientView } from './types';
 
 export function PatientDrawer({
@@ -34,6 +39,14 @@ export function PatientDrawer({
               {new Date(patient.dataNascimento).toLocaleDateString('pt-BR')}
             </p>
           </div>
+
+          {/* Estado de consistência (backend-driven) → ações mutáveis bloqueadas se não-VÁLIDO */}
+          <ClinicalStateBadge state={patient.consistencyState} />
+
+          {/* Transparência de auditoria (§3.7): operações neste prontuário são registradas */}
+          <AuditNotice>
+            Ações sobre este prontuário são registradas em auditoria (não-repúdio).
+          </AuditNotice>
 
           {/* Concorrência: indicador de soft-lock */}
           {state === 'HELD_BY_OTHER' && (
@@ -73,18 +86,25 @@ export function PatientDrawer({
               Próximas etapas do fluxo
             </p>
             <div className="flex flex-wrap gap-2">
-              {allowedTransitions(patient.status).map((t) =>
-                can(t.permission) ? (
+              {allowedTransitions(patient.status).map((t) => {
+                // Source of truth único: bloqueia se consistencyState !== VALIDO.
+                const bloqueado = patient.consistencyState !== 'VALIDO';
+                return can(t.permission) ? (
                   <Button
                     key={t.to}
                     variant="secondary"
-                    title="Requer endpoint clínico no backend"
+                    disabled={bloqueado}
+                    title={
+                      bloqueado
+                        ? QUARANTINE_TOOLTIP
+                        : 'Requer endpoint clínico no backend'
+                    }
                     onClick={() => alert(`Ação "${t.action}" — endpoint clínico pendente no backend.`)}
                   >
                     {t.action}
                   </Button>
-                ) : null,
-              )}
+                ) : null;
+              })}
               {allowedTransitions(patient.status).length === 0 && (
                 <span className="text-xs text-slate-400">Fluxo encerrado.</span>
               )}

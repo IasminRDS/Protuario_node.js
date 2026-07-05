@@ -28,6 +28,8 @@ export type Permission = (typeof PERMISSIONS)[number];
  * por fetch — a UI já consome via usePermissions, sem outras mudanças.)
  */
 const ROLE_PERMISSIONS: Record<Perfil, Permission[]> = {
+  // SuperAdmin: acesso total à plataforma (cross-tenant) — espelha o backend.
+  SuperAdmin: ['admin:full'],
   Administrador: ['admin:full'],
   Medico: [
     'patient:read',

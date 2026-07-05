@@ -26,6 +26,7 @@ export interface AuthTokens {
 }
 
 export type Perfil =
+  | 'SuperAdmin'
   | 'Administrador'
   | 'Medico'
   | 'Enfermeiro'
@@ -37,8 +38,17 @@ export interface AuthUser {
   id: string;
   login: string;
   perfil: Perfil;
+  hospitalId: string | null; // tenant ativo (null = SuperAdmin cross-tenant)
+  superAdmin: boolean;
   exp?: number;
 }
+
+/**
+ * Estado de consistência institucional (§2.2/§11) — source of truth do backend,
+ * nunca inferido na UI. VALIDO | QUARENTENA (sem vínculo) | INCONSISTENTE (vínculo
+ * quebrado). QUARENTENA e INCONSISTENTE são congelados (bloqueiam mutação).
+ */
+export type PacienteConsistencyState = 'VALIDO' | 'QUARENTENA' | 'INCONSISTENTE';
 
 export interface Paciente {
   id: string;
@@ -52,6 +62,10 @@ export interface Paciente {
   endereco: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Estado de consistência institucional (backend-driven). */
+  consistencyState?: PacienteConsistencyState;
+  /** Derivado: registro não-VÁLIDO (congelado). Bloqueia ações mutáveis. */
+  emQuarentena?: boolean;
 }
 
 export interface Auditoria {

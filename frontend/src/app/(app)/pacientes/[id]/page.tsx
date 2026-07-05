@@ -17,6 +17,7 @@ import {
   ErrorState,
 } from '@/components/ui/primitives';
 import { PatientTimeline } from '@/components/clinical/PatientTimeline';
+import { ClinicalStateBadge } from '@/components/clinical/ClinicalStateBadge';
 import type { Paciente } from '@/types';
 
 export default function ProntuarioPacientePage() {
@@ -60,6 +61,13 @@ export default function ProntuarioPacientePage() {
         <ErrorState message={error} />
       ) : paciente ? (
         <>
+          {/* Estado clínico SEMPRE explícito (§4.1) — inclui VALIDO (verde). */}
+          {paciente.consistencyState && (
+            <div className="mb-4">
+              <ClinicalStateBadge state={paciente.consistencyState} />
+            </div>
+          )}
+
           <Card className="mb-4 p-5">
             <div className="flex items-start justify-between">
               <div>

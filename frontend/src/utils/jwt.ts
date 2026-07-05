@@ -4,6 +4,8 @@ interface JwtClaims {
   sub: string;
   login: string;
   perfil: Perfil;
+  hospitalId?: string | null;
+  superAdmin?: boolean;
   exp?: number;
 }
 
@@ -19,6 +21,8 @@ export function decodeJwt(token: string): AuthUser | null {
       id: json.sub,
       login: json.login,
       perfil: json.perfil,
+      hospitalId: json.hospitalId ?? null,
+      superAdmin: json.superAdmin === true,
       exp: json.exp,
     };
   } catch {
