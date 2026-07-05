@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { RequirePermissions } from '../../shared/decorators/require-permissions.decorator';
+import { ParseBigIntIdPipe } from '../../shared/pipes/parse-bigint-id.pipe';
 import { PaginationQueryDto } from '../../shared/dto/pagination-query.dto';
 import { Permission } from '../../shared/rbac/permissions';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
@@ -40,7 +41,7 @@ export class UsuariosController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Consultar usuário por ID.' })
-  async buscar(@Param('id') id: string) {
+  async buscar(@Param('id', ParseBigIntIdPipe) id: string) {
     const data = await this.usuariosService.buscarPorId(id);
     return { data, message: 'Usuário encontrado.' };
   }
@@ -58,7 +59,7 @@ export class UsuariosController {
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar cadastro de usuário.' })
   async atualizar(
-    @Param('id') id: string,
+    @Param('id', ParseBigIntIdPipe) id: string,
     @Body() dto: UpdateUsuarioDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
@@ -70,7 +71,7 @@ export class UsuariosController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Excluir usuário (exclusão lógica — RN-005).' })
   async remover(
-    @Param('id') id: string,
+    @Param('id', ParseBigIntIdPipe) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.usuariosService.remover(id, user.id);

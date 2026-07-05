@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -44,6 +45,14 @@ export class CreateUsuarioDto {
   @IsString()
   @IsNotEmpty()
   perfilId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Hospital (tenant) do usuário. Obrigatório para perfis não-SuperAdmin.',
+  })
+  @IsOptional()
+  @IsUUID()
+  hospitalId?: string;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

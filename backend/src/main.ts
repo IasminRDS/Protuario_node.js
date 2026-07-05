@@ -41,14 +41,18 @@ async function bootstrap(): Promise<void> {
     defaultVersion: '1',
   });
 
-  // 🧼 Validação global (anti mass assignment)
+  // 🧼 Validação global (anti mass assignment) + tipos estritos.
+  // enableImplicitConversion DESLIGADO: coerção silenciosa (ex.: number→string)
+  // é risco em dado clínico. DTOs que precisam converter usam @Type() explícito
+  // (ver PaginationQueryDto). forbidUnknownValues protege contra payloads não-objeto.
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
+      forbidUnknownValues: true,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: true,
+        enableImplicitConversion: false,
       },
     }),
   );

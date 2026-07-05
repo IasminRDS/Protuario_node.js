@@ -8,6 +8,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/auth/password.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { JwtPayload } from '../../shared/interfaces/authenticated-user.interface';
+import { isSuperAdmin } from '../../shared/rbac/permissions';
 
 export interface AuthTokens {
   accessToken: string;
@@ -81,6 +82,7 @@ export class AuthService {
       login: usuario.login,
       perfil: usuario.perfil.nome,
       hospitalId: usuario.hospitalId ?? null,
+      superAdmin: isSuperAdmin(usuario.perfil.nome),
     });
 
     await this.prisma.usuario.update({
@@ -135,6 +137,7 @@ export class AuthService {
       login: usuario.login,
       perfil: usuario.perfil.nome,
       hospitalId: usuario.hospitalId ?? null,
+      superAdmin: isSuperAdmin(usuario.perfil.nome),
     });
 
     await this.prisma.usuario.update({

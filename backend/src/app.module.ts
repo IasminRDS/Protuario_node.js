@@ -10,6 +10,8 @@ import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
 import { PermissionsGuard } from './shared/guards/permissions.guard';
 import { ResponseInterceptor } from './shared/interceptors/response.interceptor';
+import { AccessAuditInterceptor } from './shared/interceptors/access-audit.interceptor';
+import { TenantTxInterceptor } from './shared/interceptors/tenant-tx.interceptor';
 import { TraceIdMiddleware } from './shared/observability/trace-id.middleware';
 import { TenantMiddleware } from './shared/tenant/tenant.middleware';
 import { EventBusModule } from './shared/events/event-bus.module';
@@ -31,6 +33,7 @@ import { LocksModule } from './modules/locks/locks.module';
 import { ProntuarioModule } from './modules/prontuario/prontuario.module';
 import { FhirModule } from './infra/fhir/fhir.module';
 import { HospitalsModule } from './modules/hospitals/hospitals.module';
+import { ConsistencyModule } from './modules/consistency/consistency.module';
 
 @Module({
   imports: [
@@ -71,6 +74,7 @@ import { HospitalsModule } from './modules/hospitals/hospitals.module';
     ProntuarioModule,
     FhirModule, // interoperabilidade FHIR R4
     HospitalsModule, // multi-tenancy (gestão de hospitais)
+    ConsistencyModule, // F0.6-B — monitor de invariantes (Camada B)
   ],
 
   providers: [
@@ -82,7 +86,11 @@ import { HospitalsModule } from './modules/hospitals/hospitals.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard }, // RBAC institucional (roles→permissions)
 
+    // F0.2: transação-por-request (mais externo) — abre 1 tx p/ mutações.
+    { provide: APP_INTERCEPTOR, useClass: TenantTxInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    // Auditoria de não-repúdio (CNJ/LGPD): super-admin + acesso a PHI. Additivo.
+    { provide: APP_INTERCEPTOR, useClass: AccessAuditInterceptor },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })

@@ -10,7 +10,8 @@ const prisma = new PrismaClient();
  *  - Usuário administrador inicial (senha em hash Argon2 — nunca texto puro).
  */
 const PERFIS = [
-  { nome: 'Administrador', descricao: 'Administração completa do sistema' },
+  { nome: 'SuperAdmin', descricao: 'Operador da plataforma (cross-tenant, ignora hospital)' },
+  { nome: 'Administrador', descricao: 'Administração completa dentro do hospital (tenant)' },
   { nome: 'Medico', descricao: 'Atendimento clínico, prescrições e exames' },
   { nome: 'Enfermeiro', descricao: 'Triagem e vacinação' },
   { nome: 'Farmaceutico', descricao: 'Estoque e medicamentos' },
@@ -28,8 +29,9 @@ async function main() {
     });
   }
 
+  // Bootstrap = SUPER_ADMIN: cross-tenant, sem hospitalId, imune ao isolamento.
   const admin = await prisma.perfil.findUniqueOrThrow({
-    where: { nome: 'Administrador' },
+    where: { nome: 'SuperAdmin' },
   });
 
   const login = process.env.SEED_ADMIN_LOGIN ?? 'admin';

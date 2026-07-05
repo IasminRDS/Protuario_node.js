@@ -1,5 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { isSuperAdmin } from '../../shared/rbac/permissions';
 import { PasswordService } from '../../infra/auth/password.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { PaginationQueryDto } from '../../shared/dto/pagination-query.dto';
@@ -69,12 +75,28 @@ export class UsuariosService {
       throw new ConflictException('Login já cadastrado.');
     }
 
+    // RN-002: perfil obrigatório e existente.
+    const perfil = await this.repo.findPerfilById(BigInt(dto.perfilId));
+    if (!perfil) {
+      throw new BadRequestException('Perfil informado não existe.');
+    }
+
+    // Isolamento multi-tenant: todo usuário — exceto SUPER_ADMIN — precisa
+    // estar vinculado a um hospital, senão ficaria bloqueado nas rotas clínicas
+    // (TenantContextError). O SUPER_ADMIN é cross-tenant e não tem hospitalId.
+    if (!isSuperAdmin(perfil.nome) && !dto.hospitalId) {
+      throw new BadRequestException(
+        'hospitalId é obrigatório para este perfil (somente SuperAdmin é cross-tenant).',
+      );
+    }
+
     const criado = await this.repo.create({
       nome: dto.nome,
       login: dto.login,
       senha: await this.passwords.hash(dto.senha),
       email: dto.email,
       ativo: dto.ativo ?? true,
+      hospitalId: isSuperAdmin(perfil.nome) ? null : dto.hospitalId,
       createdBy: BigInt(autorId),
       perfil: { connect: { id: BigInt(dto.perfilId) } }, // RN-002: perfil obrigatório
     });

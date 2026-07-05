@@ -14,6 +14,9 @@ export enum Permission {
 }
 
 const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
+  // SUPER_ADMIN: acesso total à plataforma + gestão de hospitais (tenants).
+  [PerfilNome.SUPER_ADMIN]: [Permission.ADMIN_FULL, Permission.HOSPITAL_MANAGE],
+  // ADMINISTRADOR: admin dentro do próprio hospital (escopado por tenant).
   [PerfilNome.ADMINISTRADOR]: [Permission.ADMIN_FULL],
   [PerfilNome.MEDICO]: [
     Permission.PATIENT_READ,
@@ -38,6 +41,15 @@ const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
 export function permissionsForPerfil(perfil: string): Set<Permission> {
   const list = ROLE_PERMISSIONS[perfil as PerfilNome] ?? [];
   return new Set(list);
+}
+
+/**
+ * Único perfil autorizado a atravessar o isolamento de tenant. A checagem é
+ * feita a partir do perfil carregado do banco (JwtStrategy), NÃO de um flag
+ * arbitrário do token — o cliente não consegue se auto-promover.
+ */
+export function isSuperAdmin(perfil: string): boolean {
+  return perfil === PerfilNome.SUPER_ADMIN;
 }
 
 export function grantsAll(granted: Set<Permission>): boolean {

@@ -29,7 +29,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let code = 'INTERNAL_ERROR';
     let message = 'Erro interno do servidor.';
 
-    if (exception instanceof DomainError) {
+    // Quarentena (P0.2): o trigger de banco levanta REGISTRO_CLINICO_EM_QUARENTENA.
+    // Chega aqui como erro Prisma não-tipado; padronizamos o contrato de erro
+    // (§3.5) em vez de vazar um 500 genérico. Verificado antes dos demais ramos.
+    const rawMessage = exception instanceof Error ? exception.message : String(exception);
+
+    if (rawMessage.includes('REGISTRO_CLINICO_EM_QUARENTENA')) {
+      status = HttpStatus.CONFLICT;
+      code = 'REGISTRO_CLINICO_EM_QUARENTENA';
+      message =
+        'Registro clínico bloqueado por inconsistência de vínculo institucional';
+    } else if (exception instanceof DomainError) {
       status = HttpStatus.UNPROCESSABLE_ENTITY;
       code = exception.code;
       message = exception.message;

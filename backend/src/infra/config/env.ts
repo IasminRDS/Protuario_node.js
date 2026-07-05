@@ -19,6 +19,11 @@ export const envSchema = z.object({
 
   LOGIN_MAX_ATTEMPTS: z.coerce.number().default(5),
 
+  // F0.6-B ConsistencyMonitor: janela recente (I-G8 heurístico) e intervalo do
+  // job periódico (0 = desligado; endpoint on-demand sempre disponível).
+  CONSISTENCY_WINDOW_MINUTES: z.coerce.number().default(5),
+  CONSISTENCY_MONITOR_INTERVAL_MS: z.coerce.number().default(0),
+
   CORS_ORIGINS: z.string().default('*'),
 
   THROTTLE_TTL: z.coerce.number().default(60),

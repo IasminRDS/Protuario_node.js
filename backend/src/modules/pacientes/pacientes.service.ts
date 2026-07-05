@@ -2,7 +2,8 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { PacienteRules } from '../../core/domain/entities/paciente.rules';
 import { AuditoriaService } from '../auditoria/auditoria.service';
-import { currentHospitalId } from '../../shared/tenant/tenant-context';
+import { PrismaService } from '../../infra/prisma/prisma.service';
+import { currentHospitalId, currentTx } from '../../shared/tenant/tenant-context';
 import { PaginationQueryDto } from '../../shared/dto/pagination-query.dto';
 import {
   buildPaginatedResult,
@@ -10,7 +11,11 @@ import {
 } from '../../shared/dto/paginated-result';
 import { CreatePacienteDto } from './dto/create-paciente.dto';
 import { UpdatePacienteDto } from './dto/update-paciente.dto';
-import { toPacienteView, PacienteView } from './paciente.view';
+import {
+  toPacienteView,
+  PacienteView,
+  PacienteConsistencyState,
+} from './paciente.view';
 import { PacientesRepository } from './pacientes.repository';
 
 @Injectable()
@@ -18,7 +23,18 @@ export class PacientesService {
   constructor(
     private readonly repo: PacientesRepository,
     private readonly auditoria: AuditoriaService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * F0.1: executa `fn` numa ÚNICA transação. Se já existe uma tx de request
+   * (currentTx — fase F0.2), reusa-a (evita nested tx); senão abre a própria.
+   * Mutação + auditoria de sucesso rodam aqui juntas (atomicidade — I1).
+   */
+  private runInTx<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    const tx = currentTx();
+    return tx ? fn(tx) : this.prisma.$transaction(fn);
+  }
 
   async listar(
     query: PaginationQueryDto,
@@ -48,12 +64,35 @@ export class PacientesService {
       orderBy,
     });
 
+    // Resolve o estado de consistência em lote (1 query só p/ toda a página).
+    const validos = new Set(
+      await this.repo.existingHospitalIds(
+        items
+          .map((p) => p.hospitalId)
+          .filter((h): h is string => h != null),
+      ),
+    );
+    const stateOf = (h: string | null): PacienteConsistencyState =>
+      h == null ? 'QUARENTENA' : validos.has(h) ? 'VALIDO' : 'INCONSISTENTE';
+
     return buildPaginatedResult(
-      items.map(toPacienteView),
+      items.map((p) => toPacienteView(p, stateOf(p.hospitalId))),
       total,
       query.page,
       query.pageSize,
     );
+  }
+
+  /**
+   * Estado de consistência (§2.2): QUARENTENA (sem vínculo), INCONSISTENTE
+   * (vínculo não-resolvível) ou VALIDO. Derivado do backend — nunca inferido na UI.
+   */
+  private async consistencyStateFor(
+    hospitalId: string | null,
+  ): Promise<PacienteConsistencyState> {
+    if (hospitalId == null) return 'QUARENTENA';
+    const validos = await this.repo.existingHospitalIds([hospitalId]);
+    return validos.length > 0 ? 'VALIDO' : 'INCONSISTENTE';
   }
 
   async buscarPorId(id: string): Promise<PacienteView> {
@@ -61,7 +100,10 @@ export class PacientesService {
     if (!paciente) {
       throw new NotFoundException('Paciente não encontrado.');
     }
-    return toPacienteView(paciente);
+    return toPacienteView(
+      paciente,
+      await this.consistencyStateFor(paciente.hospitalId),
+    );
   }
 
   async criar(dto: CreatePacienteDto, autorId: string): Promise<PacienteView> {
@@ -81,28 +123,39 @@ export class PacientesService {
       );
     }
 
-    const criado = await this.repo.create({
-      nome: dto.nome,
-      cpf,
-      cns,
-      sexo: dto.sexo,
-      dataNascimento: nascimento,
-      telefone: dto.telefone,
-      email: dto.email,
-      endereco: dto.endereco,
-      hospitalId: currentHospitalId(), // tenant do usuário
-      createdBy: BigInt(autorId),
+    // F0.1: create + auditoria de sucesso na MESMA transação (atômico).
+    const criado = await this.runInTx(async (tx) => {
+      const c = await this.repo.create(
+        {
+          nome: dto.nome,
+          cpf,
+          cns,
+          sexo: dto.sexo,
+          dataNascimento: nascimento,
+          telefone: dto.telefone,
+          email: dto.email,
+          endereco: dto.endereco,
+          hospitalId: currentHospitalId(), // tenant do usuário
+          createdBy: BigInt(autorId),
+        },
+        tx,
+      );
+      await this.auditoria.registrarTx(tx, {
+        usuarioId: autorId,
+        modulo: 'PACIENTES',
+        operacao: 'CRIAR',
+        entity: 'paciente',
+        entityId: c.id.toString(),
+        objeto: c.id.toString(),
+        resultado: 'SUCESSO',
+      });
+      return c;
     });
 
-    await this.auditoria.registrar({
-      usuarioId: autorId,
-      modulo: 'PACIENTES',
-      operacao: 'CRIAR',
-      objeto: criado.id.toString(),
-      resultado: 'SUCESSO',
-    });
-
-    return toPacienteView(criado);
+    return toPacienteView(
+      criado,
+      await this.consistencyStateFor(criado.hospitalId),
+    );
   }
 
   async atualizar(
@@ -143,17 +196,24 @@ export class PacientesService {
       updatedBy: BigInt(autorId),
     };
 
-    const atualizado = await this.repo.update(BigInt(id), data);
-
-    await this.auditoria.registrar({
-      usuarioId: autorId,
-      modulo: 'PACIENTES',
-      operacao: 'ATUALIZAR',
-      objeto: id,
-      resultado: 'SUCESSO',
+    const atualizado = await this.runInTx(async (tx) => {
+      const u = await this.repo.update(BigInt(id), data, tx);
+      await this.auditoria.registrarTx(tx, {
+        usuarioId: autorId,
+        modulo: 'PACIENTES',
+        operacao: 'ATUALIZAR',
+        entity: 'paciente',
+        entityId: id,
+        objeto: id,
+        resultado: 'SUCESSO',
+      });
+      return u;
     });
 
-    return toPacienteView(atualizado);
+    return toPacienteView(
+      atualizado,
+      await this.consistencyStateFor(atualizado.hospitalId),
+    );
   }
 
   /**
@@ -169,17 +229,21 @@ export class PacientesService {
     // RN-009: com ou sem histórico, nunca há exclusão física — sempre soft delete.
     // O histórico clínico (atendimentos/prontuário) permanece preservado.
     const atendimentos = await this.repo.countAtendimentos(paciente.id);
-    await this.repo.update(paciente.id, {
-      deletedAt: new Date(),
-      deletedBy: BigInt(autorId),
-    });
-
-    await this.auditoria.registrar({
-      usuarioId: autorId,
-      modulo: 'PACIENTES',
-      operacao: 'EXCLUSAO_LOGICA',
-      objeto: id,
-      resultado: atendimentos > 0 ? 'COM_HISTORICO' : 'SEM_HISTORICO',
+    await this.runInTx(async (tx) => {
+      await this.repo.update(
+        paciente.id,
+        { deletedAt: new Date(), deletedBy: BigInt(autorId) },
+        tx,
+      );
+      await this.auditoria.registrarTx(tx, {
+        usuarioId: autorId,
+        modulo: 'PACIENTES',
+        operacao: 'EXCLUSAO_LOGICA',
+        entity: 'paciente',
+        entityId: id,
+        objeto: id,
+        resultado: atendimentos > 0 ? 'COM_HISTORICO' : 'SEM_HISTORICO',
+      });
     });
   }
 }

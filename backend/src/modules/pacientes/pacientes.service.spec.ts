@@ -40,13 +40,21 @@ describe('PacientesService', () => {
       list: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      existingHospitalIds: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<PacientesRepository>;
 
     auditoria = {
       registrar: jest.fn().mockResolvedValue(undefined),
+      registrarTx: jest.fn().mockResolvedValue('evt-uuid'),
     } as unknown as jest.Mocked<AuditoriaService>;
 
-    service = new PacientesService(repo, auditoria);
+    // Prisma mock: $transaction executa o callback com um tx fake (a atomicidade
+    // real é validada em e2e contra Postgres; aqui só validamos o fluxo).
+    const prisma = {
+      $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn({})),
+    } as unknown as import('../../infra/prisma/prisma.service').PrismaService;
+
+    service = new PacientesService(repo, auditoria, prisma);
   });
 
   const dto: CreatePacienteDto = {
@@ -64,8 +72,10 @@ describe('PacientesService', () => {
 
     expect(repo.create).toHaveBeenCalledWith(
       expect.objectContaining({ cpf: '12345678900', createdBy: 10n }),
+      expect.anything(), // tx client (F0.1)
     );
-    expect(auditoria.registrar).toHaveBeenCalledWith(
+    expect(auditoria.registrarTx).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ modulo: 'PACIENTES', operacao: 'CRIAR' }),
     );
     expect(view.id).toBe('1');
@@ -102,9 +112,11 @@ describe('PacientesService', () => {
     expect(repo.update).toHaveBeenCalledWith(
       1n,
       expect.objectContaining({ deletedBy: 10n }),
+      expect.anything(), // tx client (F0.1)
     );
     // Nunca chama delete físico: só update com deletedAt.
-    expect(auditoria.registrar).toHaveBeenCalledWith(
+    expect(auditoria.registrarTx).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ operacao: 'EXCLUSAO_LOGICA' }),
     );
   });

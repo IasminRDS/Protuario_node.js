@@ -1,5 +1,14 @@
 import { Paciente } from '@prisma/client';
 
+/**
+ * Estado de consistência institucional do registro clínico (§2.2/§11):
+ *  - VALIDO:        vínculo com hospital existente;
+ *  - QUARENTENA:    sem vínculo (hospital_id nulo);
+ *  - INCONSISTENTE: vínculo quebrado (hospital_id aponta p/ hospital inexistente).
+ * QUARENTENA e INCONSISTENTE são ambos congelados no banco (trigger).
+ */
+export type PacienteConsistencyState = 'VALIDO' | 'QUARENTENA' | 'INCONSISTENTE';
+
 export interface PacienteView {
   id: string;
   nome: string;
@@ -12,9 +21,23 @@ export interface PacienteView {
   endereco: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Estado de consistência institucional (source of truth para a UI). */
+  consistencyState: PacienteConsistencyState;
+  /**
+   * Atalho: registro NÃO-válido (QUARENTENA ou INCONSISTENTE) → congelado no
+   * banco, ações mutáveis bloqueadas. Derivado de consistencyState.
+   */
+  emQuarentena: boolean;
 }
 
-export function toPacienteView(p: Paciente): PacienteView {
+/**
+ * `consistencyState` é resolvido pelo service (I/O de checagem de vínculo) e
+ * injetado aqui — o mapper permanece puro. `emQuarentena` é derivado.
+ */
+export function toPacienteView(
+  p: Paciente,
+  consistencyState: PacienteConsistencyState,
+): PacienteView {
   return {
     id: p.id.toString(),
     nome: p.nome,
@@ -27,5 +50,7 @@ export function toPacienteView(p: Paciente): PacienteView {
     endereco: p.endereco,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
+    consistencyState,
+    emQuarentena: consistencyState !== 'VALIDO',
   };
 }

@@ -8,6 +8,7 @@ import {
   JwtPayload,
 } from '../../shared/interfaces/authenticated-user.interface';
 import { tenantStore } from '../../shared/tenant/tenant-context';
+import { isSuperAdmin } from '../../shared/rbac/permissions';
 
 /**
  * Valida o access token e garante que o usuário ainda existe e está ativo
@@ -36,11 +37,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Usuário inválido ou inativo.');
     }
 
+    // Fonte de verdade do privilégio cross-tenant: o perfil no banco (não o JWT).
+    const superAdmin = isSuperAdmin(usuario.perfil.nome);
+
     // Popula o contexto de tenant da requisição (multi-hospital).
     const store = tenantStore.getStore();
     if (store) {
       store.hospitalId = usuario.hospitalId ?? null;
       store.userId = usuario.id.toString();
+      store.bypassTenant = superAdmin;
     }
 
     return {
@@ -48,6 +53,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       login: usuario.login,
       perfil: usuario.perfil.nome,
       hospitalId: usuario.hospitalId ?? null,
+      superAdmin,
     };
   }
 }

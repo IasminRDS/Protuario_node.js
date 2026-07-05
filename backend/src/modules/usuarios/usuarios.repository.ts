@@ -20,6 +20,10 @@ export class UsuariosRepository {
     return this.prisma.usuario.findFirst({ where: { login } });
   }
 
+  findPerfilById(perfilId: bigint) {
+    return this.prisma.perfil.findUnique({ where: { id: perfilId } });
+  }
+
   countAtivosByPerfil(perfilId: bigint) {
     return this.prisma.usuario.count({
       where: { perfilId, deletedAt: null },

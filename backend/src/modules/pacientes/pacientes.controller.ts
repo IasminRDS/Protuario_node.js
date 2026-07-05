@@ -9,10 +9,13 @@ import {
   Post,
   Put,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { RequirePermissions } from '../../shared/decorators/require-permissions.decorator';
+import { IdempotencyInterceptor } from '../../shared/interceptors/idempotency.interceptor';
+import { ParseBigIntIdPipe } from '../../shared/pipes/parse-bigint-id.pipe';
 import { PaginationQueryDto } from '../../shared/dto/pagination-query.dto';
 import { Permission } from '../../shared/rbac/permissions';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
@@ -42,7 +45,7 @@ export class PacientesController {
   @Get(':id')
   @RequirePermissions(Permission.PATIENT_READ)
   @ApiOperation({ summary: 'Consultar paciente por ID (UC-12 base).' })
-  async buscar(@Param('id') id: string) {
+  async buscar(@Param('id', ParseBigIntIdPipe) id: string) {
     const data = await this.pacientesService.buscarPorId(id);
     return { data, message: 'Paciente encontrado.' };
   }
@@ -50,6 +53,12 @@ export class PacientesController {
   // Cadastro/alteração: Recepção e Administrador (UC-03/UC-04).
   @Post()
   @RequirePermissions(Permission.PATIENT_CREATE)
+  @UseInterceptors(IdempotencyInterceptor)
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: false,
+    description: 'Chave de idempotência: retries com a mesma chave fazem replay.',
+  })
   @ApiOperation({ summary: 'Cadastrar paciente (UC-03).' })
   async criar(
     @Body() dto: CreatePacienteDto,
@@ -63,7 +72,7 @@ export class PacientesController {
   @RequirePermissions(Permission.PATIENT_CREATE)
   @ApiOperation({ summary: 'Atualizar cadastro do paciente (UC-04).' })
   async atualizar(
-    @Param('id') id: string,
+    @Param('id', ParseBigIntIdPipe) id: string,
     @Body() dto: UpdatePacienteDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
@@ -75,7 +84,7 @@ export class PacientesController {
   @RequirePermissions(Permission.PATIENT_CREATE)
   @ApiOperation({ summary: 'Atualização parcial do paciente.' })
   async atualizarParcial(
-    @Param('id') id: string,
+    @Param('id', ParseBigIntIdPipe) id: string,
     @Body() dto: UpdatePacienteDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
@@ -88,7 +97,7 @@ export class PacientesController {
   @RequirePermissions(Permission.ADMIN_FULL)
   @ApiOperation({ summary: 'Excluir paciente (exclusão lógica — RN-009).' })
   async remover(
-    @Param('id') id: string,
+    @Param('id', ParseBigIntIdPipe) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.pacientesService.remover(id, user.id);

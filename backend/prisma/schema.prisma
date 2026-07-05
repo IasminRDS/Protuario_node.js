@@ -317,6 +317,9 @@ model MovimentacaoEstoque {
 
 model Auditoria {
   id        BigInt   @id @default(autoincrement())
+  // Identidade do evento gerada 100% no SERVIDOR (C6). Única globalmente; nunca
+  // derivada de entrada do cliente (traceId/header/body). Base para dedup/correlação.
+  eventId   String   @unique @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
   usuarioId BigInt?  @map("usuario_id")
   modulo    String   @db.VarChar(100)
   operacao  String   @db.VarChar(100)
@@ -329,6 +332,9 @@ model Auditoria {
   entityId  String?  @map("entity_id") @db.VarChar(100)
   device    String?  @db.VarChar(255)
   reason    String?  @db.Text
+  // F0.4: tempo causal por agregado (entity:entityId). Monotônico/gapless por
+  // agregado; null para eventos sem agregado (ex.: AUTH).
+  aggregateSeq BigInt? @map("aggregate_seq")
   dataEvento DateTime @default(now()) @map("data_evento")
   // Sem updated_at / deleted_at: registros nunca alterados ou removidos.
 
@@ -418,6 +424,15 @@ model AggregateSequence {
   seq         Int    @default(0)
 
   @@map("aggregate_sequence")
+}
+
+// F0.4 — sequência causal por agregado clínico (chave textual entity:entityId).
+// Distinta da AggregateSequence do SNPE (chaveada por uuid de cidadão).
+model AuditAggregateSequence {
+  aggregateKey String @id @map("aggregate_key")
+  seq          BigInt @default(0)
+
+  @@map("audit_aggregate_sequence")
 }
 
 // ===========================================================================

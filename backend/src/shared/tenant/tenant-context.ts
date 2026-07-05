@@ -1,8 +1,23 @@
 import { AsyncLocalStorage } from 'async_hooks';
+import type { Prisma } from '@prisma/client';
 
 export interface TenantContext {
   hospitalId: string | null;
   userId: string | null;
+  /**
+   * Quando true (SUPER_ADMIN), o middleware de tenant NÃO injeta hospitalId —
+   * a conta enxerga todos os hospitais. Ausente/false = fail-closed (sem bypass).
+   */
+  bypassTenant?: boolean;
+  /**
+   * Transação da requisição (F0.1/F0.2). Quando presente, services de mutação
+   * reusam este client em vez de abrir novo `$transaction` — evita nested tx.
+   * Hoje fica indefinido (o interceptor de tx-por-request é fase seguinte); os
+   * services já leem via currentTx() e caem no fallback `$transaction` próprio.
+   */
+  txClient?: Prisma.TransactionClient;
+  /** Identificador server-side da requisição (F0.2) — isolamento/correlação. */
+  requestId?: string;
 }
 
 /**
@@ -18,4 +33,9 @@ export function currentTenant(): TenantContext | undefined {
 
 export function currentHospitalId(): string | null {
   return tenantStore.getStore()?.hospitalId ?? null;
+}
+
+/** Transação ambiente da requisição, se houver (F0.1). */
+export function currentTx(): Prisma.TransactionClient | undefined {
+  return tenantStore.getStore()?.txClient;
 }

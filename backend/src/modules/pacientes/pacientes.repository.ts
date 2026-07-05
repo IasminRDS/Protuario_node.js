@@ -1,13 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { currentTx } from '../../shared/tenant/tenant-context';
 
 @Injectable()
 export class PacientesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Cliente de banco da requisição (F0.2): reusa a transação do request quando
+   * existe (`currentTx`), senão o Prisma principal. Garante que TODA operação da
+   * requisição use a MESMA conexão/transação — read-your-writes + 1 conexão por
+   * request (evita 2ª conexão paralela e a consequente exaustão de pool).
+   */
+  private db(): Prisma.TransactionClient | PrismaService {
+    return currentTx() ?? this.prisma;
+  }
+
   findById(id: bigint) {
-    return this.prisma.paciente.findFirst({ where: { id, deletedAt: null } });
+    return this.db().paciente.findFirst({ where: { id, deletedAt: null } });
   }
 
   /** Busca duplicidade por CPF ou CNS (RN-007), inclusive registros já removidos. */
@@ -16,11 +27,24 @@ export class PacientesRepository {
     if (cpf) or.push({ cpf });
     if (cns) or.push({ cns });
     if (or.length === 0) return Promise.resolve(null);
-    return this.prisma.paciente.findFirst({ where: { OR: or } });
+    return this.db().paciente.findFirst({ where: { OR: or } });
   }
 
   countAtendimentos(pacienteId: bigint) {
-    return this.prisma.atendimento.count({ where: { pacienteId } });
+    return this.db().atendimento.count({ where: { pacienteId } });
+  }
+
+  /**
+   * Retorna, dentre os ids informados, aqueles que correspondem a um hospital
+   * EXISTENTE. Usado para determinar quarentena (vínculo não-resolvível).
+   */
+  async existingHospitalIds(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.db().hospital.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
   }
 
   async list(params: {
@@ -29,23 +53,31 @@ export class PacientesRepository {
     where: Prisma.PacienteWhereInput;
     orderBy: Prisma.PacienteOrderByWithRelationInput;
   }) {
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.paciente.findMany({
+    const db = this.db();
+    const [items, total] = await Promise.all([
+      db.paciente.findMany({
         where: params.where,
         skip: params.skip,
         take: params.take,
         orderBy: params.orderBy,
       }),
-      this.prisma.paciente.count({ where: params.where }),
+      db.paciente.count({ where: params.where }),
     ]);
     return { items, total };
   }
 
-  create(data: Prisma.PacienteCreateInput) {
-    return this.prisma.paciente.create({ data });
+  create(
+    data: Prisma.PacienteCreateInput,
+    client: Prisma.TransactionClient = this.db() as Prisma.TransactionClient,
+  ) {
+    return client.paciente.create({ data });
   }
 
-  update(id: bigint, data: Prisma.PacienteUpdateInput) {
-    return this.prisma.paciente.update({ where: { id }, data });
+  update(
+    id: bigint,
+    data: Prisma.PacienteUpdateInput,
+    client: Prisma.TransactionClient = this.db() as Prisma.TransactionClient,
+  ) {
+    return client.paciente.update({ where: { id }, data });
   }
 }

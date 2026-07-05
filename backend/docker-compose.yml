@@ -23,7 +23,11 @@ services:
       - '6379:6379'
 
   api:
-    build: .
+    # Build a partir da RAIZ do monorepo (usa o package-lock.json autoritativo
+    # dos workspaces). O Dockerfile antigo em backend/ usava um lock órfão.
+    build:
+      context: ..
+      dockerfile: Dockerfile
     container_name: pee2-api
     depends_on:
       postgres:
