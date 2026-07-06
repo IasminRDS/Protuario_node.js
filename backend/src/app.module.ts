@@ -42,6 +42,9 @@ import { ExamesModule } from './modules/exames/exames.module';
 import { PrescricaoHospitalarModule } from './modules/prescricao-hospitalar/prescricao-hospitalar.module';
 import { CirurgiaModule } from './modules/cirurgia/cirurgia.module';
 
+// FASE 5 — produção hospitalar
+import { PdfModule } from './modules/pdf/pdf.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -89,6 +92,9 @@ import { CirurgiaModule } from './modules/cirurgia/cirurgia.module';
     ExamesModule,
     PrescricaoHospitalarModule,
     CirurgiaModule,
+
+    // FASE 5 — produção
+    PdfModule,
   ],
 
   providers: [
