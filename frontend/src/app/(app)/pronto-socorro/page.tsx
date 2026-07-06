@@ -16,6 +16,7 @@ import {
   PageHeader,
   TableSkeleton,
 } from '@/components/ui/primitives';
+import { cn } from '@/utils/cn';
 import type { Paciente } from '@/types';
 import {
   useChamarPaciente,
@@ -73,8 +74,17 @@ export default function ProntoSocorroPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <div className="border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-700">
-            Fila ({ordenada.length})
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-700">
+            <span>Fila ({ordenada.length})</span>
+            <span className="flex items-center gap-1.5 text-xs font-normal text-slate-400">
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  fila.isFetching ? 'animate-pulse bg-emerald-500' : 'bg-slate-300',
+                )}
+              />
+              {fila.isFetching ? 'Atualizando…' : 'Ao vivo'}
+            </span>
           </div>
           {fila.isLoading ? (
             <TableSkeleton rows={5} />
