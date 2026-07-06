@@ -35,6 +35,13 @@ import { FhirModule } from './infra/fhir/fhir.module';
 import { HospitalsModule } from './modules/hospitals/hospitals.module';
 import { ConsistencyModule } from './modules/consistency/consistency.module';
 
+// FASE 2 — módulos hospitalares (migração paridade Flask)
+import { InternacaoModule } from './modules/internacao/internacao.module';
+import { ProntoSocorroModule } from './modules/pronto-socorro/pronto-socorro.module';
+import { ExamesModule } from './modules/exames/exames.module';
+import { PrescricaoHospitalarModule } from './modules/prescricao-hospitalar/prescricao-hospitalar.module';
+import { CirurgiaModule } from './modules/cirurgia/cirurgia.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -75,6 +82,13 @@ import { ConsistencyModule } from './modules/consistency/consistency.module';
     FhirModule, // interoperabilidade FHIR R4
     HospitalsModule, // multi-tenancy (gestão de hospitais)
     ConsistencyModule, // F0.6-B — monitor de invariantes (Camada B)
+
+    // FASE 2 — hospitalar
+    InternacaoModule,
+    ProntoSocorroModule,
+    ExamesModule,
+    PrescricaoHospitalarModule,
+    CirurgiaModule,
   ],
 
   providers: [

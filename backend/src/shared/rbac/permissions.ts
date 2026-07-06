@@ -11,6 +11,13 @@ export enum Permission {
   AUDIT_READ = 'audit:read',
   HOSPITAL_MANAGE = 'hospital:manage',
   ADMIN_FULL = 'admin:full',
+
+  // FASE 2 — módulos hospitalares (migração paridade Flask)
+  INTERNMENT_WRITE = 'internment:write', // internação / leitos / evolução
+  EMERGENCY_WRITE = 'emergency:write', // pronto-socorro (fila / atendimento)
+  EXAM_WRITE = 'exam:write', // solicitação / resultado de exames
+  SURGERY_WRITE = 'surgery:write', // centro cirúrgico
+  MED_ADMIN_WRITE = 'med-admin:write', // administração de medicação (enfermagem)
 }
 
 const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
@@ -23,11 +30,19 @@ const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
     Permission.CLINICAL_READ,
     Permission.ENCOUNTER_WRITE,
     Permission.PRESCRIPTION_WRITE,
+    Permission.INTERNMENT_WRITE,
+    Permission.EMERGENCY_WRITE,
+    Permission.EXAM_WRITE,
+    Permission.SURGERY_WRITE,
   ],
   [PerfilNome.ENFERMEIRO]: [
     Permission.PATIENT_READ,
     Permission.TRIAGE_WRITE,
     Permission.CLINICAL_READ,
+    Permission.EMERGENCY_WRITE,
+    Permission.EXAM_WRITE,
+    Permission.INTERNMENT_WRITE,
+    Permission.MED_ADMIN_WRITE,
   ],
   [PerfilNome.FARMACEUTICO]: [Permission.PATIENT_READ],
   [PerfilNome.RECEPCAO]: [Permission.PATIENT_READ, Permission.PATIENT_CREATE],
