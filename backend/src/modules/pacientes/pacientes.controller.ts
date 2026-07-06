@@ -16,10 +16,10 @@ import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { RequirePermissions } from '../../shared/decorators/require-permissions.decorator';
 import { IdempotencyInterceptor } from '../../shared/interceptors/idempotency.interceptor';
 import { ParseBigIntIdPipe } from '../../shared/pipes/parse-bigint-id.pipe';
-import { PaginationQueryDto } from '../../shared/dto/pagination-query.dto';
 import { Permission } from '../../shared/rbac/permissions';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
 import { CreatePacienteDto } from './dto/create-paciente.dto';
+import { ListPacientesQueryDto } from './dto/list-pacientes-query.dto';
 import { UpdatePacienteDto } from './dto/update-paciente.dto';
 import { PacientesService } from './pacientes.service';
 
@@ -33,12 +33,11 @@ export class PacientesController {
   @Get()
   @RequirePermissions(Permission.PATIENT_READ)
   @ApiOperation({ summary: 'Listar pacientes (paginado, filtros nome/cpf).' })
-  async listar(
-    @Query() query: PaginationQueryDto,
-    @Query('nome') nome?: string,
-    @Query('cpf') cpf?: string,
-  ) {
-    const data = await this.pacientesService.listar(query, { nome, cpf });
+  async listar(@Query() query: ListPacientesQueryDto) {
+    const data = await this.pacientesService.listar(query, {
+      nome: query.nome,
+      cpf: query.cpf,
+    });
     return { data, message: 'Pacientes listados.' };
   }
 
