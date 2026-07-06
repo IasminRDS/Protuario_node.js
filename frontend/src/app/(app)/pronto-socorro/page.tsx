@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Plus, PhoneCall, X } from 'lucide-react';
+import { Plus, PhoneCall, Stethoscope, X } from 'lucide-react';
 import { apiErrorMessage } from '@/services/api';
 import { Can } from '@/modules/shared/rbac/Can';
 import { PatientPicker } from '@/components/clinical/PatientPicker';
@@ -23,6 +23,7 @@ import {
   useRegistrarChegada,
 } from '@/modules/clinical/emergencia';
 import type { AtendimentoPS, PsStatus } from '@/modules/clinical/types';
+import { AtendimentoPanel } from './atendimento-panel';
 
 const STATUS_TONE: Record<PsStatus, 'slate' | 'amber' | 'blue' | 'green' | 'red'> = {
   em_espera: 'amber',
@@ -42,6 +43,7 @@ const STATUS_LABEL: Record<PsStatus, string> = {
 export default function ProntoSocorroPage() {
   const fila = useFilaPS();
   const [chegadaAberta, setChegadaAberta] = useState(false);
+  const [emAtendimento, setEmAtendimento] = useState<AtendimentoPS | null>(null);
 
   const ordenada = useMemo(
     () =>
@@ -69,42 +71,66 @@ export default function ProntoSocorroPage() {
 
       {chegadaAberta && <ChegadaForm onClose={() => setChegadaAberta(false)} />}
 
-      <Card>
-        <div className="border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-700">
-          Fila ({ordenada.length})
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <div className="border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-700">
+            Fila ({ordenada.length})
+          </div>
+          {fila.isLoading ? (
+            <TableSkeleton rows={5} />
+          ) : fila.isError ? (
+            <ErrorState
+              message={apiErrorMessage(fila.error)}
+              onRetry={() => fila.refetch()}
+            />
+          ) : ordenada.length === 0 ? (
+            <EmptyState
+              title="Fila vazia"
+              hint="Nenhum paciente aguardando ou em atendimento."
+            />
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {ordenada.map((a) => (
+                <FilaRow key={a.id} atendimento={a} onAtender={setEmAtendimento} />
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <div>
+          {emAtendimento ? (
+            <AtendimentoPanel
+              atendimento={emAtendimento}
+              onClose={() => setEmAtendimento(null)}
+            />
+          ) : (
+            <Card className="p-6 text-center text-sm text-slate-400">
+              <Stethoscope className="mx-auto mb-2 h-6 w-6 text-slate-300" />
+              Selecione um paciente em atendimento para registrar exames,
+              prescrição e desfecho.
+            </Card>
+          )}
         </div>
-        {fila.isLoading ? (
-          <TableSkeleton rows={5} />
-        ) : fila.isError ? (
-          <ErrorState
-            message={apiErrorMessage(fila.error)}
-            onRetry={() => fila.refetch()}
-          />
-        ) : ordenada.length === 0 ? (
-          <EmptyState
-            title="Fila vazia"
-            hint="Nenhum paciente aguardando ou em atendimento."
-          />
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {ordenada.map((a) => (
-              <FilaRow key={a.id} atendimento={a} />
-            ))}
-          </ul>
-        )}
-      </Card>
+      </div>
     </div>
   );
 }
 
-function FilaRow({ atendimento }: { atendimento: AtendimentoPS }) {
+function FilaRow({
+  atendimento,
+  onAtender,
+}: {
+  atendimento: AtendimentoPS;
+  onAtender: (a: AtendimentoPS) => void;
+}) {
   const chamar = useChamarPaciente();
   const [erro, setErro] = useState<string | null>(null);
 
   async function handleChamar() {
     setErro(null);
     try {
-      await chamar.mutateAsync(atendimento.id);
+      const atualizado = await chamar.mutateAsync(atendimento.id);
+      onAtender({ ...atendimento, ...atualizado });
     } catch (e) {
       setErro(apiErrorMessage(e)); // ex.: 409 "Paciente não está aguardando"
     }
@@ -132,7 +158,7 @@ function FilaRow({ atendimento }: { atendimento: AtendimentoPS }) {
       </div>
 
       <Can any={['emergency:write']}>
-        {atendimento.status === 'em_espera' && (
+        {atendimento.status === 'em_espera' ? (
           <Button
             variant="secondary"
             loading={chamar.isPending}
@@ -141,7 +167,12 @@ function FilaRow({ atendimento }: { atendimento: AtendimentoPS }) {
             <PhoneCall className="h-4 w-4" />
             Chamar
           </Button>
-        )}
+        ) : atendimento.status === 'em_atendimento' ? (
+          <Button variant="ghost" onClick={() => onAtender(atendimento)}>
+            <Stethoscope className="h-4 w-4" />
+            Atender
+          </Button>
+        ) : null}
       </Can>
     </li>
   );
