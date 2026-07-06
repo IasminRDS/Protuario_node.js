@@ -51,8 +51,8 @@ describe('Conflict-Graph aplicado ao sistema (E2E, Postgres real)', () => {
         authorize(http().patch(`${API}/pacientes/${p1}`), token).send({ telefone: `1199999${i}000` }),
       ),
     );
-    // Agregado independente
-    const p2 = (await post('11144477735').expect(201)).body.data.id as string;
+    // Agregado independente (cria o registro; o id não é usado adiante)
+    await post('11144477735').expect(201);
     // Evento EOD (denial) sobre o agregado p1
     await audit.registrarAutonomo({ modulo: 'ACCESS', operacao: 'PATCH', entity: 'paciente', entityId: p1, resultado: 'ERRO:409' });
 

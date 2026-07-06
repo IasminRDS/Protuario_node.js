@@ -62,7 +62,11 @@ export class KafkaEventConsumer implements OnModuleInit, OnModuleDestroy {
     await this.consumer.subscribe({ topic: TOPIC_MPI, fromBeginning: true });
 
     await this.consumer.run({
-      eachMessage: async ({ message }: any) => {
+      eachMessage: async ({
+        message,
+      }: {
+        message: { value: Buffer | null };
+      }) => {
         const raw = message.value?.toString();
         if (!raw) return;
 
