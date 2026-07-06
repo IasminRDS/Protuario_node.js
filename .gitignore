@@ -157,3 +157,6 @@ instance/*.db
 # Sub-projetos têm seus próprios .gitignore
 backend/node_modules/
 frontend/node_modules/
+
+# Tooling local do agente (Claude Code) — não versionar
+.claude/
