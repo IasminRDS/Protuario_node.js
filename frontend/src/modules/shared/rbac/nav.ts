@@ -6,6 +6,8 @@ import {
   FileText,
   Pill,
   ShieldCheck,
+  Ambulance,
+  BedDouble,
   type LucideIcon,
 } from 'lucide-react';
 import type { Permission } from './permissions';
@@ -22,7 +24,9 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/pacientes', label: 'Pacientes', icon: Users, any: ['patient:read'] },
+  { href: '/pronto-socorro', label: 'Pronto-Socorro', icon: Ambulance, any: ['emergency:write'] },
   { href: '/triagem', label: 'Triagem', icon: ClipboardList, any: ['triage:write'] },
+  { href: '/internacao', label: 'Internação', icon: BedDouble, any: ['internment:write'] },
   { href: '/atendimentos', label: 'Atendimentos', icon: Stethoscope, any: ['clinical:write'] },
   { href: '/prontuario', label: 'Prontuário', icon: FileText, any: ['clinical:read'] },
   { href: '/prescricao', label: 'Prescrição', icon: Pill, any: ['prescription:create'] },
