@@ -32,16 +32,16 @@ model Perfil {
 }
 
 model Usuario {
-  id               BigInt    @id @default(autoincrement())
-  nome             String    @db.VarChar(200)
-  login            String    @unique @db.VarChar(100)
-  senha            String    @db.VarChar(255) // hash Argon2 — nunca texto puro (RN-005/117)
-  email            String?   @db.VarChar(200)
-  perfilId         BigInt    @map("perfil_id")
-  hospitalId       String?   @map("hospital_id") @db.Uuid // tenant (hospital do usuário)
-  ativo            Boolean   @default(true)
-  refreshTokenHash String?   @map("refresh_token_hash") @db.VarChar(255)
-  loginAttempts    Int       @default(0) @map("login_attempts")
+  id               BigInt  @id @default(autoincrement())
+  nome             String  @db.VarChar(200)
+  login            String  @unique @db.VarChar(100)
+  senha            String  @db.VarChar(255) // hash Argon2 — nunca texto puro (RN-005/117)
+  email            String? @db.VarChar(200)
+  perfilId         BigInt  @map("perfil_id")
+  hospitalId       String? @map("hospital_id") @db.Uuid // tenant (hospital do usuário)
+  ativo            Boolean @default(true)
+  refreshTokenHash String? @map("refresh_token_hash") @db.VarChar(255)
+  loginAttempts    Int     @default(0) @map("login_attempts")
 
   // auditoria de campos
   createdAt DateTime  @default(now()) @map("created_at")
@@ -51,12 +51,13 @@ model Usuario {
   updatedBy BigInt?   @map("updated_by")
   deletedBy BigInt?   @map("deleted_by")
 
-  perfil            Perfil         @relation(fields: [perfilId], references: [id])
-  atendimentos      Atendimento[]  @relation("MedicoResponsavel")
-  agendas           Agenda[]       @relation("ProfissionalAgenda")
-  vacinacoes        Vacinacao[]    @relation("ProfissionalVacinacao")
-  movimentacoes     MovimentacaoEstoque[]
-  auditorias        Auditoria[]
+  perfil        Perfil                @relation(fields: [perfilId], references: [id])
+  atendimentos  Atendimento[]         @relation("MedicoResponsavel")
+  agendas       Agenda[]              @relation("ProfissionalAgenda")
+  vacinacoes    Vacinacao[]           @relation("ProfissionalVacinacao")
+  movimentacoes MovimentacaoEstoque[]
+  auditorias    Auditoria[]
+  medico        Medico? // perfil profissional (CRM/especialidade), quando aplicável
 
   @@index([nome])
   @@index([deletedAt])
@@ -68,15 +69,35 @@ model Usuario {
 // ---------------------------------------------------------------------------
 
 model Paciente {
-  id             BigInt    @id @default(autoincrement())
-  nome           String    @db.VarChar(250)
-  cpf            String?   @unique @db.VarChar(14) // opcional/único (ver análise A1)
-  cns            String?   @unique @db.VarChar(30) // Cartão Nacional de Saúde
-  sexo           String    @db.Char(1) // CHECK ('M','F','O')
-  dataNascimento DateTime  @map("data_nascimento") @db.Date
-  telefone       String?   @db.VarChar(20)
-  email          String?   @db.VarChar(200)
-  endereco       String?   @db.Text
+  id             BigInt   @id @default(autoincrement())
+  nome           String   @db.VarChar(250)
+  cpf            String?  @unique @db.VarChar(14) // opcional/único (ver análise A1)
+  cns            String?  @unique @db.VarChar(30) // Cartão Nacional de Saúde
+  sexo           String   @db.Char(1) // CHECK ('M','F','O')
+  dataNascimento DateTime @map("data_nascimento") @db.Date
+  telefone       String?  @db.VarChar(20)
+  email          String?  @db.VarChar(200)
+  endereco       String?  @db.Text
+
+  // --- Paridade legado Flask (aditivo, opcional) -------------------------------
+  nomeSocial    String? @map("nome_social") @db.VarChar(150)
+  rg            String? @db.VarChar(20)
+  racaCor       String? @map("raca_cor") @db.VarChar(20)
+  nomeMae       String? @map("nome_mae") @db.VarChar(150)
+  nomePai       String? @map("nome_pai") @db.VarChar(150)
+  telefone2     String? @db.VarChar(20)
+  cep           String? @db.VarChar(9)
+  logradouro    String? @db.VarChar(200)
+  numero        String? @db.VarChar(10)
+  complemento   String? @db.VarChar(100)
+  bairro        String? @db.VarChar(100)
+  municipio     String? @db.VarChar(100)
+  municipioIbge String? @map("municipio_ibge") @db.VarChar(7)
+  uf            String? @db.VarChar(2)
+  tipoSanguineo String? @map("tipo_sanguineo") @db.VarChar(5)
+  alergias      String? @db.Text
+  observacoes   String? @db.Text
+  ativo         Boolean @default(true)
 
   // Estado clínico (FSM): REGISTERED|IN_TRIAGE|WAITING_DOCTOR|IN_CONSULTATION|UNDER_OBSERVATION|DISCHARGED
   status String @default("REGISTERED") @db.VarChar(30)
@@ -99,6 +120,18 @@ model Paciente {
   prontuarios  Prontuario[]
   internacoes  Internacao[]
   vacinacoes   Vacinacao[]
+
+  // --- Relações de módulos migrados do legado Flask ---------------------------
+  agendamentos      Agendamento[]
+  examesSolicitados ExameSolicitado[]
+  vacinasAplicadas  VacinaAplicada[]
+  prescricoesAmb    PrescricaoAmbulatorial[]
+  prescricoesHosp   PrescricaoHospitalar[]
+  encaminhamentos   Encaminhamento[]
+  cirurgias         Cirurgia[]
+  atendimentosPs    AtendimentoPS[]
+  aihs              AIH[]
+  apacs             APAC[]
 
   @@index([nome])
   @@index([deletedAt])
@@ -139,9 +172,19 @@ model Triagem {
   altura        Decimal? @db.Decimal(4, 2)
   saturacao     Decimal? @db.Decimal(5, 2)
   frequencia    Int?
-  classificacao String?  @db.VarChar(30) // classificação de risco
+  classificacao String?  @db.VarChar(30) // classificação de risco (Manchester: vermelho|laranja|amarelo|verde|azul)
   observacoes   String?  @db.Text
   hospitalId    String?  @map("hospital_id") @db.Uuid // tenant
+
+  // --- Paridade legado Flask (Protocolo Manchester) ----------------------------
+  realizadoPor    BigInt?  @map("realizado_por")
+  agendamentoId   BigInt?  @map("agendamento_id")
+  queixaPrincipal String?  @map("queixa_principal") @db.VarChar(200)
+  frequenciaResp  Int?     @map("frequencia_respiratoria")
+  glicemia        Decimal? @db.Decimal(6, 1)
+  dorEscala       Int?     @map("dor_escala") // 0-10
+  discriminadores String?  @db.Text // JSON list
+  statusTriagem   String   @default("aguardando") @map("status_triagem") @db.VarChar(20) // aguardando|em_atendimento|finalizado
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -192,6 +235,28 @@ model Prontuario {
   createdAt     DateTime @default(now()) @map("created_at")
   // Sem deleted_at: histórico permanente e imutável (RN-022/023).
 
+  // --- Paridade legado Flask (SOAP + sinais vitais + CID-10) -------------------
+  medicoId            BigInt?   @map("medico_id")
+  subjetivo           String?   @db.Text // S - queixa/anamnese
+  objetivo            String?   @db.Text // O - exame físico
+  avaliacao           String?   @db.Text // A - hipóteses diagnósticas
+  plano               String?   @db.Text // P - conduta
+  pressaoArterial     String?   @map("pressao_arterial") @db.VarChar(10)
+  temperatura         Decimal?  @db.Decimal(4, 1)
+  frequenciaCardiaca  Int?      @map("frequencia_cardiaca")
+  frequenciaResp      Int?      @map("frequencia_respiratoria")
+  saturacaoO2         Decimal?  @map("saturacao_o2") @db.Decimal(5, 2)
+  peso                Decimal?  @db.Decimal(5, 2)
+  altura              Decimal?  @db.Decimal(4, 2)
+  glicemia            Decimal?  @db.Decimal(6, 1)
+  cidPrincipal        String?   @map("cid_principal") @db.VarChar(10)
+  cidSecundario       String?   @map("cid_secundario") @db.VarChar(10)
+  prescricaoTexto     String?   @map("prescricao_texto") @db.Text
+  encaminhamentoTexto String?   @map("encaminhamento_texto") @db.Text
+  retornoDias         Int?      @map("retorno_dias")
+  assinado            Boolean   @default(false)
+  assinadoEm          DateTime? @map("assinado_em")
+
   atendimento Atendimento @relation(fields: [atendimentoId], references: [id])
   paciente    Paciente    @relation(fields: [pacienteId], references: [id])
 
@@ -241,15 +306,32 @@ model Exame {
 model Internacao {
   id         BigInt    @id @default(autoincrement())
   pacienteId BigInt    @map("paciente_id")
-  leito      String    @db.VarChar(20)
+  leito      String    @db.VarChar(20) // legado: identificador textual do leito
   entrada    DateTime  @default(now())
   alta       DateTime?
-  status     String    @default("ATIVA") @db.VarChar(30) // RN-037
+  status     String    @default("ATIVA") @db.VarChar(30) // ATIVA|ALTA|TRANSFERIDA|OBITO (RN-037)
+
+  // --- Paridade legado Flask (leito estruturado, motivo, alta, AIH) -----------
+  leitoId          BigInt?   @map("leito_id")
+  medicoId         BigInt?   @map("medico_id")
+  hospitalId       String?   @map("hospital_id") @db.Uuid // tenant
+  tipo             String    @default("clinica") @db.VarChar(30) // clinica|cirurgica|obstetricia|pediatrica|psiquiatria|uti
+  motivo           String?   @db.Text
+  hipoteseDiag     String?   @map("hipotese_diag") @db.VarChar(200)
+  cidPrincipal     String?   @map("cid_principal") @db.VarChar(10)
+  dataPrevistaAlta DateTime? @map("data_prevista_alta")
+  tipoAlta         String?   @map("tipo_alta") @db.VarChar(30) // curado|melhorado|transferencia|obito|a_pedido|evasao
+  sumarioAlta      String?   @map("sumario_alta") @db.Text
+  cidAlta          String?   @map("cid_alta") @db.VarChar(10)
+  aihNumero        String?   @map("aih_numero") @db.VarChar(20)
+  observacoes      String?   @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  paciente Paciente @relation(fields: [pacienteId], references: [id])
+  paciente  Paciente             @relation(fields: [pacienteId], references: [id])
+  leitoRef  Leito?               @relation(fields: [leitoId], references: [id])
+  evolucoes EvolucaoInternacao[]
 
   @@index([status])
   @@map("internacao")
@@ -316,26 +398,26 @@ model MovimentacaoEstoque {
 // ---------------------------------------------------------------------------
 
 model Auditoria {
-  id        BigInt   @id @default(autoincrement())
+  id           BigInt   @id @default(autoincrement())
   // Identidade do evento gerada 100% no SERVIDOR (C6). Única globalmente; nunca
   // derivada de entrada do cliente (traceId/header/body). Base para dedup/correlação.
-  eventId   String   @unique @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
-  usuarioId BigInt?  @map("usuario_id")
-  modulo    String   @db.VarChar(100)
-  operacao  String   @db.VarChar(100)
-  objeto    String?  @db.VarChar(200)
-  resultado String?  @db.VarChar(50)
-  ip        String?  @db.VarChar(50)
-  hospitalId String? @map("hospital_id") @db.Uuid // tenant (auditoria por hospital)
+  eventId      String   @unique @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
+  usuarioId    BigInt?  @map("usuario_id")
+  modulo       String   @db.VarChar(100)
+  operacao     String   @db.VarChar(100)
+  objeto       String?  @db.VarChar(200)
+  resultado    String?  @db.VarChar(50)
+  ip           String?  @db.VarChar(50)
+  hospitalId   String?  @map("hospital_id") @db.Uuid // tenant (auditoria por hospital)
   // Enriquecimento LGPD (cap. 122-124)
-  entity    String?  @db.VarChar(100)
-  entityId  String?  @map("entity_id") @db.VarChar(100)
-  device    String?  @db.VarChar(255)
-  reason    String?  @db.Text
+  entity       String?  @db.VarChar(100)
+  entityId     String?  @map("entity_id") @db.VarChar(100)
+  device       String?  @db.VarChar(255)
+  reason       String?  @db.Text
   // F0.4: tempo causal por agregado (entity:entityId). Monotônico/gapless por
   // agregado; null para eventos sem agregado (ex.: AUTH).
-  aggregateSeq BigInt? @map("aggregate_seq")
-  dataEvento DateTime @default(now()) @map("data_evento")
+  aggregateSeq BigInt?  @map("aggregate_seq")
+  dataEvento   DateTime @default(now()) @map("data_evento")
   // Sem updated_at / deleted_at: registros nunca alterados ou removidos.
 
   usuario Usuario? @relation(fields: [usuarioId], references: [id])
@@ -516,10 +598,481 @@ model Unidade {
   hospitalId String   @map("hospital_id") @db.Uuid
   nome       String   @db.VarChar(200)
   tipo       String?  @db.VarChar(50) // UBS, PA, HOSPITAL, ...
+  cnes       String?  @unique @db.VarChar(20) // paridade legado (unidades_saude.cnes)
+  cidade     String?  @db.VarChar(80)
+  uf         String?  @db.Char(2)
+  ativo      Boolean  @default(true)
   createdAt  DateTime @default(now()) @map("created_at")
 
   hospital Hospital @relation(fields: [hospitalId], references: [id])
 
   @@index([hospitalId])
   @@map("unidade")
+}
+
+// ###########################################################################
+// MIGRAÇÃO LEGADO FLASK — módulos que faltavam (registrados e OCULTOS).
+// Convenções: tenancy por hospital_id (uuid); FKs "operacionais" (medico_id,
+// criado_por, unidade legada) como colunas escalares — integridade validada na
+// aplicação — para não religar o núcleo já existente. Relações Prisma apenas
+// onde o vínculo é estrutural do domínio (paciente, itens, leito).
+// ###########################################################################
+
+// --- Profissional médico (CRM/especialidade) -------------------------------
+model Medico {
+  id            BigInt   @id @default(autoincrement())
+  userId        BigInt   @unique @map("user_id")
+  crm           String   @unique @db.VarChar(20)
+  especialidade String?  @db.VarChar(100)
+  hospitalId    String?  @map("hospital_id") @db.Uuid
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user Usuario @relation(fields: [userId], references: [id])
+
+  @@map("medico")
+}
+
+// --- Regional de saúde (DRS / macrorregião) --------------------------------
+model Regional {
+  id        BigInt   @id @default(autoincrement())
+  nome      String   @db.VarChar(150)
+  codigo    String?  @db.VarChar(50) // ex.: MO-01
+  uf        String?  @db.Char(2)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("regional")
+}
+
+// --- Internação: Setor / Leito / Evolução ----------------------------------
+model Setor {
+  id          BigInt  @id @default(autoincrement())
+  nome        String  @db.VarChar(100)
+  sigla       String? @db.VarChar(10)
+  tipo        String  @default("enfermaria") @db.VarChar(30) // enfermaria|uti|semi_intensivo|ps|cirurgia|recuperacao|isolamento
+  andar       String? @db.VarChar(10)
+  responsavel String? @db.VarChar(100)
+  hospitalId  String? @map("hospital_id") @db.Uuid
+  ativo       Boolean @default(true)
+
+  leitos Leito[]
+
+  @@map("setor")
+}
+
+model Leito {
+  id          BigInt  @id @default(autoincrement())
+  setorId     BigInt  @map("setor_id")
+  hospitalId  String? @map("hospital_id") @db.Uuid
+  numero      String  @db.VarChar(20) // ex.: 201A, UTI-03
+  tipo        String? @db.VarChar(30) // comum|isolamento|uti
+  status      String  @default("livre") @db.VarChar(20) // livre|ocupado|reservado|em_higienizacao|interditado
+  observacoes String? @db.VarChar(200)
+  ativo       Boolean @default(true)
+
+  setor       Setor        @relation(fields: [setorId], references: [id])
+  internacoes Internacao[]
+
+  @@index([status])
+  @@map("leito")
+}
+
+model EvolucaoInternacao {
+  id                 BigInt   @id @default(autoincrement())
+  internacaoId       BigInt   @map("internacao_id")
+  profissionalId     BigInt?  @map("profissional_id")
+  tipo               String   @default("medica") @db.VarChar(20) // medica|enfermagem|fisioterapia|nutricao|psicologia|servico_social
+  pressaoArterial    String?  @map("pressao_arterial") @db.VarChar(10)
+  temperatura        Decimal? @db.Decimal(4, 1)
+  frequenciaCardiaca Int?     @map("frequencia_cardiaca")
+  frequenciaResp     Int?     @map("frequencia_respiratoria")
+  saturacaoO2        Decimal? @map("saturacao_o2") @db.Decimal(5, 2)
+  diureseMl          Int?     @map("diurese_ml")
+  balancoHidrico     Int?     @map("balanco_hidrico")
+  subjetivo          String?  @db.Text
+  objetivo           String?  @db.Text
+  avaliacao          String?  @db.Text
+  plano              String?  @db.Text
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  internacao Internacao @relation(fields: [internacaoId], references: [id], onDelete: Cascade)
+
+  @@index([internacaoId])
+  @@map("evolucao_internacao")
+}
+
+// --- Exames: catálogo (TipoExame) + solicitação rica -----------------------
+model TipoExame {
+  id         BigInt  @id @default(autoincrement())
+  codigo     String  @unique @db.VarChar(20) // ex.: HMG, URO
+  nome       String  @db.VarChar(150)
+  categoria  String? @db.VarChar(50) // laboratorial|imagem|funcional|anatomopatologico|outro
+  instrucoes String? @db.Text
+  ativo      Boolean @default(true)
+
+  solicitacoes ExameSolicitado[]
+
+  @@map("tipo_exame")
+}
+
+model ExameSolicitado {
+  id               BigInt    @id @default(autoincrement())
+  pacienteId       BigInt    @map("paciente_id")
+  tipoExameId      BigInt    @map("tipo_exame_id")
+  prontuarioId     BigInt?   @map("prontuario_id")
+  medicoId         BigInt?   @map("medico_id")
+  hospitalId       String?   @map("hospital_id") @db.Uuid
+  status           String    @default("solicitado") @db.VarChar(20) // solicitado|coletado|em_analise|resultado_disponivel|cancelado
+  urgencia         String    @default("rotina") @db.VarChar(10) // rotina|urgente|urgentissimo
+  indicacaoClinica String?   @map("indicacao_clinica") @db.Text
+  observacoes      String?   @db.Text
+  resultadoTexto   String?   @map("resultado_texto") @db.Text
+  resultadoValor   String?   @map("resultado_valor") @db.VarChar(100)
+  resultadoUnidade String?   @map("resultado_unidade") @db.VarChar(30)
+  valorReferencia  String?   @map("valor_referencia") @db.VarChar(100)
+  interpretacao    String?   @db.VarChar(20) // normal|alterado|critico|indeterminado
+  dataSolicitacao  DateTime  @default(now()) @map("data_solicitacao")
+  dataColeta       DateTime? @map("data_coleta")
+  dataResultado    DateTime? @map("data_resultado")
+  criadoPor        BigInt?   @map("criado_por")
+
+  paciente  Paciente  @relation(fields: [pacienteId], references: [id])
+  tipoExame TipoExame @relation(fields: [tipoExameId], references: [id])
+
+  @@index([status])
+  @@index([pacienteId])
+  @@map("exame_solicitado")
+}
+
+// --- Catálogos administrativos ---------------------------------------------
+model CatalogoExame {
+  id     BigInt  @id @default(autoincrement())
+  nome   String  @db.VarChar(120)
+  codigo String  @unique @db.VarChar(30)
+  grupo  String? @db.VarChar(80)
+  ativo  Boolean @default(true)
+
+  @@map("catalogo_exame")
+}
+
+model CatalogoVacina {
+  id     BigInt  @id @default(autoincrement())
+  nome   String  @db.VarChar(120)
+  codigo String  @unique @db.VarChar(30)
+  doses  String? @db.VarChar(80)
+  faixa  String? @db.VarChar(120)
+  ativo  Boolean @default(true)
+
+  @@map("catalogo_vacina")
+}
+
+// --- Vacinas: catálogo clínico + aplicação ---------------------------------
+model Vacina {
+  id            BigInt    @id @default(autoincrement())
+  nome          String    @db.VarChar(120)
+  sigla         String?   @db.VarChar(50)
+  dosesTotal    Int       @default(1) @map("doses_total")
+  intervaloDias Int?      @map("intervalo_dias")
+  fabricante    String?   @db.VarChar(120)
+  lote          String?   @db.VarChar(60)
+  validade      DateTime? @db.Date
+  ativo         Boolean   @default(true)
+
+  aplicacoes VacinaAplicada[]
+
+  @@map("vacina")
+}
+
+model VacinaAplicada {
+  id            BigInt   @id @default(autoincrement())
+  pacienteId    BigInt   @map("paciente_id")
+  vacinaId      BigInt?  @map("vacina_id")
+  nomeVacina    String?  @map("nome_vacina") @db.VarChar(120) // fallback sem catálogo
+  dose          String?  @db.VarChar(40)
+  dataAplicacao DateTime @default(now()) @map("data_aplicacao")
+  unidade       String?  @db.VarChar(120)
+  profissional  String?  @db.VarChar(120)
+  observacao    String?  @db.Text
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+  vacina   Vacina?  @relation(fields: [vacinaId], references: [id])
+
+  @@index([pacienteId])
+  @@map("vacina_aplicada")
+}
+
+// --- Medicamentos + prescrição ambulatorial (itens) ------------------------
+model Medicamento {
+  id            BigInt  @id @default(autoincrement())
+  nomeGenerico  String  @map("nome_generico") @db.VarChar(150)
+  nomeComercial String? @map("nome_comercial") @db.VarChar(150)
+  classe        String? @db.VarChar(100)
+  apresentacao  String? @db.VarChar(100)
+  viaAdmin      String? @map("via_admin") @db.VarChar(50)
+  controlado    Boolean @default(false)
+  listaRename   String? @map("lista_rename") @db.VarChar(10)
+  ativo         Boolean @default(true)
+
+  itensAmb  ItemPrescricao[]
+  itensHosp ItemPrescricaoHosp[]
+
+  @@map("medicamento")
+}
+
+model PrescricaoAmbulatorial {
+  id           BigInt   @id @default(autoincrement())
+  pacienteId   BigInt   @map("paciente_id")
+  prontuarioId BigInt?  @map("prontuario_id")
+  medicoId     BigInt?  @map("medico_id")
+  hospitalId   String?  @map("hospital_id") @db.Uuid
+  tipo         String   @default("ambulatorial") @db.VarChar(50)
+  validadeDias Int?     @map("validade_dias")
+  observacoes  String?  @db.Text
+  status       String   @default("ativa") @db.VarChar(20) // ativa|suspensa|concluida
+  criadoPor    BigInt?  @map("criado_por")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  paciente Paciente         @relation(fields: [pacienteId], references: [id])
+  itens    ItemPrescricao[]
+
+  @@index([pacienteId])
+  @@map("prescricao_ambulatorial")
+}
+
+model ItemPrescricao {
+  id            BigInt  @id @default(autoincrement())
+  prescricaoId  BigInt  @map("prescricao_id")
+  medicamentoId BigInt? @map("medicamento_id")
+  nomeLivre     String? @map("nome_livre") @db.VarChar(150)
+  dose          String? @db.VarChar(100)
+  via           String? @db.VarChar(50)
+  frequencia    String? @db.VarChar(100)
+  duracao       String? @db.VarChar(100)
+  quantidade    String? @db.VarChar(50)
+  instrucoes    String? @db.Text
+
+  prescricao  PrescricaoAmbulatorial @relation(fields: [prescricaoId], references: [id], onDelete: Cascade)
+  medicamento Medicamento?           @relation(fields: [medicamentoId], references: [id])
+
+  @@map("item_prescricao")
+}
+
+// --- Prescrição HOSPITALAR (itens + administração de enfermagem) -----------
+model PrescricaoHospitalar {
+  id             BigInt   @id @default(autoincrement())
+  pacienteId     BigInt   @map("paciente_id")
+  internacaoId   BigInt?  @map("internacao_id")
+  medicoId       BigInt?  @map("medico_id")
+  hospitalId     String?  @map("hospital_id") @db.Uuid
+  dataPrescricao DateTime @default(now()) @map("data_prescricao")
+  validadeHoras  Int      @default(24) @map("validade_horas")
+  observacoes    String?  @db.Text
+  status         String   @default("ativa") @db.VarChar(20) // ativa|finalizada|suspensa
+  criadoPor      BigInt?  @map("criado_por")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  paciente Paciente             @relation(fields: [pacienteId], references: [id])
+  itens    ItemPrescricaoHosp[]
+
+  @@index([pacienteId])
+  @@map("prescricao_hospitalar")
+}
+
+model ItemPrescricaoHosp {
+  id               BigInt  @id @default(autoincrement())
+  prescricaoHospId BigInt  @map("prescricao_hosp_id")
+  medicamentoId    BigInt? @map("medicamento_id")
+  nomeLivre        String? @map("nome_livre") @db.VarChar(150)
+  dose             String? @db.VarChar(100)
+  via              String? @db.VarChar(50)
+  frequencia       String? @db.VarChar(100)
+  instrucoes       String? @db.Text
+
+  prescricao     PrescricaoHospitalar @relation(fields: [prescricaoHospId], references: [id], onDelete: Cascade)
+  medicamento    Medicamento?         @relation(fields: [medicamentoId], references: [id])
+  administracoes AdministracaoMed[]
+
+  @@map("item_prescricao_hosp")
+}
+
+model AdministracaoMed {
+  id                BigInt    @id @default(autoincrement())
+  itemPrescricaoId  BigInt    @map("item_prescricao_id")
+  administradoPor   BigInt?   @map("administrado_por")
+  dataAgendada      DateTime? @map("data_agendada")
+  dataAdministracao DateTime? @map("data_administracao")
+  status            String    @default("pendente") @db.VarChar(20) // pendente|realizado|recusado|atrasado
+  observacoes       String?   @db.Text
+
+  item ItemPrescricaoHosp @relation(fields: [itemPrescricaoId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("administracao_med")
+}
+
+// --- Centro cirúrgico ------------------------------------------------------
+model SalaCirurgica {
+  id    BigInt  @id @default(autoincrement())
+  nome  String  @db.VarChar(100)
+  tipo  String  @db.VarChar(50) // geral|ortopedia|urgencia|...
+  ativa Boolean @default(true)
+
+  cirurgias Cirurgia[]
+
+  @@map("sala_cirurgica")
+}
+
+model Cirurgia {
+  id           BigInt    @id @default(autoincrement())
+  pacienteId   BigInt    @map("paciente_id")
+  medicoId     BigInt?   @map("medico_id") // cirurgião principal
+  salaId       BigInt?   @map("sala_id")
+  internacaoId BigInt?   @map("internacao_id")
+  hospitalId   String?   @map("hospital_id") @db.Uuid
+  descricao    String    @db.VarChar(255)
+  status       String    @default("agendada") @db.VarChar(20) // agendada|em_andamento|concluida|cancelada
+  dataAgendada DateTime? @map("data_agendada")
+  dataInicio   DateTime? @map("data_inicio")
+  dataFim      DateTime? @map("data_fim")
+  observacoes  String?   @db.Text
+  criadoPor    BigInt?   @map("criado_por")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  paciente Paciente       @relation(fields: [pacienteId], references: [id])
+  sala     SalaCirurgica? @relation(fields: [salaId], references: [id])
+
+  @@index([status])
+  @@map("cirurgia")
+}
+
+// --- Encaminhamentos (referência/contra-referência) ------------------------
+model Encaminhamento {
+  id                  BigInt    @id @default(autoincrement())
+  pacienteId          BigInt    @map("paciente_id")
+  prontuarioId        BigInt?   @map("prontuario_id")
+  medicoId            BigInt?   @map("medico_id")
+  hospitalId          String?   @map("hospital_id") @db.Uuid // unidade de origem (tenant)
+  especialidade       String    @db.VarChar(100)
+  servicoDestino      String?   @map("servico_destino") @db.VarChar(200)
+  prioridade          String    @default("eletivo") @db.VarChar(20) // eletivo|urgencia|emergencia
+  motivo              String    @db.Text
+  hipoteseDiagnostica String?   @map("hipotese_diagnostica") @db.VarChar(200)
+  cid                 String?   @db.VarChar(10)
+  status              String    @default("solicitado") @db.VarChar(20) // solicitado|agendado|realizado|cancelado
+  dataSolicitacao     DateTime  @default(now()) @map("data_solicitacao")
+  dataAgendada        DateTime? @map("data_agendada")
+  dataRealizacao      DateTime? @map("data_realizacao")
+  observacoes         String?   @db.Text
+  retornoInfo         String?   @map("retorno_info") @db.Text
+  criadoPor           BigInt?   @map("criado_por")
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  @@index([status])
+  @@map("encaminhamento")
+}
+
+// --- Faturamento SUS: AIH e APAC -------------------------------------------
+model AIH {
+  id                    BigInt    @id @default(autoincrement())
+  pacienteId            BigInt    @map("paciente_id")
+  internacaoId          BigInt?   @map("internacao_id")
+  medicoSolicitanteId   BigInt?   @map("medico_solicitante_id")
+  hospitalId            String?   @map("hospital_id") @db.Uuid
+  numeroAih             String?   @unique @map("numero_aih") @db.VarChar(20)
+  procedimentoPrincipal String    @map("procedimento_principal") @db.VarChar(255)
+  cidPrincipal          String?   @map("cid_principal") @db.VarChar(10)
+  dataEmissao           DateTime  @default(now()) @map("data_emissao") @db.Date
+  dataApresentacao      DateTime? @map("data_apresentacao") @db.Date
+  valorTotal            Decimal?  @map("valor_total") @db.Decimal(10, 2)
+  status                String    @default("aberta") @db.VarChar(20) // aberta|faturada|rejeitada|cancelada
+  criadoPor             BigInt?   @map("criado_por")
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  @@map("faturamento_aih")
+}
+
+model APAC {
+  id                    BigInt   @id @default(autoincrement())
+  pacienteId            BigInt   @map("paciente_id")
+  medicoSolicitanteId   BigInt?  @map("medico_solicitante_id")
+  hospitalId            String?  @map("hospital_id") @db.Uuid
+  numeroApac            String?  @unique @map("numero_apac") @db.VarChar(20)
+  procedimentoPrincipal String   @map("procedimento_principal") @db.VarChar(255)
+  cidPrincipal          String?  @map("cid_principal") @db.VarChar(10)
+  dataInicioValidade    DateTime @map("data_inicio_validade") @db.Date
+  dataFimValidade       DateTime @map("data_fim_validade") @db.Date
+  quantidadeAprovada    Int      @default(1) @map("quantidade_aprovada")
+  quantidadeRealizada   Int      @default(0) @map("quantidade_realizada")
+  valorTotal            Decimal? @map("valor_total") @db.Decimal(10, 2)
+  status                String   @default("ativa") @db.VarChar(20) // ativa|encerrada|cancelada
+  criadoPor             BigInt?  @map("criado_por")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  @@map("faturamento_apac")
+}
+
+// --- Pronto-Socorro (fila / atendimento) -----------------------------------
+model AtendimentoPS {
+  id                    BigInt    @id @default(autoincrement())
+  pacienteId            BigInt    @map("paciente_id")
+  medicoId              BigInt?   @map("medico_id")
+  triagemId             BigInt?   @map("triagem_id")
+  hospitalId            String?   @map("hospital_id") @db.Uuid
+  motivoConsulta        String    @map("motivo_consulta") @db.Text
+  diagnosticoPreliminar String?   @map("diagnostico_preliminar") @db.Text
+  conduta               String?   @db.Text
+  status                String    @default("em_espera") @db.VarChar(50) // em_espera|em_atendimento|internado|alta|obito
+  dataChegada           DateTime  @default(now()) @map("data_chegada")
+  dataAtendimento       DateTime? @map("data_atendimento")
+  dataLiberacao         DateTime? @map("data_liberacao")
+  criadoPor             BigInt?   @map("criado_por")
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  @@index([status])
+  @@map("atendimento_ps")
+}
+
+// --- Agendamento (consulta marcada) ----------------------------------------
+model Agendamento {
+  id           BigInt   @id @default(autoincrement())
+  pacienteId   BigInt   @map("paciente_id")
+  medicoId     BigInt?  @map("medico_id")
+  hospitalId   String?  @map("hospital_id") @db.Uuid
+  criadoPor    BigInt?  @map("criado_por")
+  dataHora     DateTime @map("data_hora")
+  tipo         String   @default("consulta") @db.VarChar(30)
+  status       String   @default("agendado") @db.VarChar(20) // agendado|confirmado|realizado|cancelado|faltou
+  observacoes  String?  @db.Text
+  motivoCancel String?  @map("motivo_cancel") @db.VarChar(200)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  @@index([status])
+  @@index([dataHora])
+  @@map("agendamento")
+}
+
+// --- Agenda leve (eventos por nome, sem FK) --------------------------------
+model AgendaEvento {
+  id           BigInt  @id @default(autoincrement())
+  pacienteNome String  @map("paciente_nome") @db.VarChar(160)
+  data         String  @db.VarChar(10) // YYYY-MM-DD
+  hora         String  @db.VarChar(5) // HH:MM
+  tipo         String  @default("consulta") @db.VarChar(40)
+  status       String  @default("agendado") @db.VarChar(30)
+  observacao   String? @db.VarChar(255)
+  ativo        Boolean @default(true)
+
+  @@index([data])
+  @@index([status])
+  @@map("agenda_evento")
 }
