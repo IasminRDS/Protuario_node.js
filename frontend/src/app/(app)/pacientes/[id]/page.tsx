@@ -18,11 +18,18 @@ import {
 } from '@/components/ui/primitives';
 import { PatientTimeline } from '@/components/clinical/PatientTimeline';
 import { ClinicalStateBadge } from '@/components/clinical/ClinicalStateBadge';
+import { Can } from '@/modules/shared/rbac/Can';
+import { PdfButton } from '@/components/pdf/PdfButton';
+import {
+  pdfErrorMessage,
+  useDownloadProntuario,
+} from '@/modules/pdf/hooks/useDownloadPdf';
 import type { Paciente } from '@/types';
 
 export default function ProntuarioPacientePage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const downloadProntuario = useDownloadProntuario();
 
   const [paciente, setPaciente] = useState<Paciente | null>(null);
   const [timeline, setTimeline] = useState<ProntuarioTimelineItem[] | null>(null);
@@ -82,6 +89,21 @@ export default function ProntuarioPacientePage() {
                 <p>CNS: {paciente.cns ?? '—'}</p>
               </div>
             </div>
+
+            <Can perm="clinical:read">
+              <div className="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
+                <PdfButton
+                  label="Gerar prontuário (PDF)"
+                  loading={downloadProntuario.isPending}
+                  onClick={() => downloadProntuario.mutate(paciente.id)}
+                />
+                {downloadProntuario.isError && (
+                  <span className="text-xs text-red-600">
+                    {pdfErrorMessage(downloadProntuario.error)}
+                  </span>
+                )}
+              </div>
+            </Can>
           </Card>
 
           <Card className="p-5">

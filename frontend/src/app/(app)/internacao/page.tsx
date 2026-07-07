@@ -17,6 +17,11 @@ import {
   TableSkeleton,
 } from '@/components/ui/primitives';
 import { cn } from '@/utils/cn';
+import { PdfButton } from '@/components/pdf/PdfButton';
+import {
+  pdfErrorMessage,
+  useDownloadAlta,
+} from '@/modules/pdf/hooks/useDownloadPdf';
 import type { Paciente } from '@/types';
 import {
   useDarAlta,
@@ -248,11 +253,13 @@ function InternacaoPanel({
 }) {
   const evoluir = useEvoluir(internacao.id);
   const darAlta = useDarAlta();
+  const downloadAlta = useDownloadAlta();
   const [subjetivo, setSubjetivo] = useState('');
   const [avaliacao, setAvaliacao] = useState('');
   const [tipoAlta, setTipoAlta] = useState<'melhorado' | 'curado' | 'transferencia' | 'obito'>('melhorado');
   const [erro, setErro] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [altaConcluida, setAltaConcluida] = useState(false);
 
   async function handleEvoluir() {
     setErro(null);
@@ -279,7 +286,8 @@ function InternacaoPanel({
     setErro(null);
     try {
       await darAlta.mutateAsync({ id: internacao.id, input: { tipoAlta } });
-      onClose();
+      // Mantém o painel aberto para permitir a emissão do resumo de alta (PDF).
+      setAltaConcluida(true);
     } catch (e) {
       setErro(apiErrorMessage(e));
     }
@@ -331,33 +339,56 @@ function InternacaoPanel({
           <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <LogOut className="h-4 w-4" /> Alta
           </h3>
-          <div className="flex gap-2">
-            <select
-              value={tipoAlta}
-              onChange={(e) =>
-                setTipoAlta(
-                  e.target.value as
-                    | 'melhorado'
-                    | 'curado'
-                    | 'transferencia'
-                    | 'obito',
-                )
-              }
-              className="flex-1 rounded-md border border-slate-300 px-2 py-2 text-sm"
-            >
-              <option value="melhorado">Melhorado</option>
-              <option value="curado">Curado</option>
-              <option value="transferencia">Transferência</option>
-              <option value="obito">Óbito</option>
-            </select>
-            <Button
-              variant="danger"
-              loading={darAlta.isPending}
-              onClick={handleAlta}
-            >
-              Dar alta
-            </Button>
-          </div>
+          {altaConcluida ? (
+            <div className="space-y-2">
+              <p className="text-xs text-emerald-600">
+                Alta registrada. Emita o resumo de alta:
+              </p>
+              <div className="flex items-center gap-3">
+                <PdfButton
+                  label="Resumo de alta (PDF)"
+                  loading={downloadAlta.isPending}
+                  onClick={() => downloadAlta.mutate(internacao.id)}
+                />
+                <Button variant="ghost" onClick={onClose}>
+                  Fechar
+                </Button>
+              </div>
+              {downloadAlta.isError && (
+                <p className="text-xs text-red-600">
+                  {pdfErrorMessage(downloadAlta.error)}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <select
+                value={tipoAlta}
+                onChange={(e) =>
+                  setTipoAlta(
+                    e.target.value as
+                      | 'melhorado'
+                      | 'curado'
+                      | 'transferencia'
+                      | 'obito',
+                  )
+                }
+                className="flex-1 rounded-md border border-slate-300 px-2 py-2 text-sm"
+              >
+                <option value="melhorado">Melhorado</option>
+                <option value="curado">Curado</option>
+                <option value="transferencia">Transferência</option>
+                <option value="obito">Óbito</option>
+              </select>
+              <Button
+                variant="danger"
+                loading={darAlta.isPending}
+                onClick={handleAlta}
+              >
+                Dar alta
+              </Button>
+            </div>
+          )}
         </section>
       </Can>
 

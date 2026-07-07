@@ -19,6 +19,11 @@ import {
 } from '@/modules/clinical/exames';
 import { useCriarPrescricao } from '@/modules/clinical/prescricao';
 import { useFinalizarPS } from '@/modules/clinical/emergencia';
+import { PdfButton } from '@/components/pdf/PdfButton';
+import {
+  pdfErrorMessage,
+  useDownloadPrescricao,
+} from '@/modules/pdf/hooks/useDownloadPdf';
 import type {
   AtendimentoPS,
   ExameSolicitado,
@@ -230,9 +235,10 @@ const ITEM_VAZIO: ItemPrescricaoHospInput = {
 
 function PrescricaoSection({ pacienteId }: { pacienteId: string }) {
   const criar = useCriarPrescricao(pacienteId);
+  const downloadPrescricao = useDownloadPrescricao();
   const [itens, setItens] = useState<ItemPrescricaoHospInput[]>([{ ...ITEM_VAZIO }]);
   const [erro, setErro] = useState<string | null>(null);
-  const [ok, setOk] = useState(false);
+  const [criadaId, setCriadaId] = useState<string | null>(null);
 
   function setItem(i: number, patch: Partial<ItemPrescricaoHospInput>) {
     setItens((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -240,16 +246,16 @@ function PrescricaoSection({ pacienteId }: { pacienteId: string }) {
 
   async function handleCriar() {
     setErro(null);
-    setOk(false);
+    setCriadaId(null);
     const validos = itens.filter((i) => i.nomeLivre?.trim());
     if (validos.length === 0) {
       setErro('Adicione ao menos um medicamento.');
       return;
     }
     try {
-      await criar.mutateAsync({ pacienteId, itens: validos });
+      const criada = await criar.mutateAsync({ pacienteId, itens: validos });
       setItens([{ ...ITEM_VAZIO }]);
-      setOk(true);
+      setCriadaId(criada.id);
     } catch (e) {
       setErro(apiErrorMessage(e));
     }
@@ -311,7 +317,22 @@ function PrescricaoSection({ pacienteId }: { pacienteId: string }) {
         </Button>
       </div>
       {erro && <p className="text-xs text-red-600">{erro}</p>}
-      {ok && <p className="text-xs text-emerald-600">Prescrição criada.</p>}
+      {criadaId && (
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-emerald-600">Prescrição criada.</span>
+          <PdfButton
+            variant="ghost"
+            label="Baixar PDF"
+            loading={downloadPrescricao.isPending}
+            onClick={() => downloadPrescricao.mutate(criadaId)}
+          />
+        </div>
+      )}
+      {downloadPrescricao.isError && (
+        <p className="text-xs text-red-600">
+          {pdfErrorMessage(downloadPrescricao.error)}
+        </p>
+      )}
     </section>
   );
 }
