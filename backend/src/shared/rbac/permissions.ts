@@ -18,6 +18,9 @@ export enum Permission {
   EXAM_WRITE = 'exam:write', // solicitação / resultado de exames
   SURGERY_WRITE = 'surgery:write', // centro cirúrgico
   MED_ADMIN_WRITE = 'med-admin:write', // administração de medicação (enfermagem)
+
+  // FASE 5 — gestão/relatórios
+  REPORTS_READ = 'reports:read', // leitura de relatórios (views materializadas)
 }
 
 const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
@@ -34,6 +37,7 @@ const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
     Permission.EMERGENCY_WRITE,
     Permission.EXAM_WRITE,
     Permission.SURGERY_WRITE,
+    Permission.REPORTS_READ,
   ],
   [PerfilNome.ENFERMEIRO]: [
     Permission.PATIENT_READ,
@@ -50,6 +54,7 @@ const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
     Permission.PATIENT_READ,
     Permission.CLINICAL_READ,
     Permission.AUDIT_READ,
+    Permission.REPORTS_READ,
   ],
 };
 

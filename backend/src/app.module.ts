@@ -44,6 +44,7 @@ import { CirurgiaModule } from './modules/cirurgia/cirurgia.module';
 
 // FASE 5 — produção hospitalar
 import { PdfModule } from './modules/pdf/pdf.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { PdfModule } from './modules/pdf/pdf.module';
 
     // FASE 5 — produção
     PdfModule,
+    ReportsModule,
   ],
 
   providers: [
