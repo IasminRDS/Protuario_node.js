@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Ambulance,
   BedDouble,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react';
 import type { Permission } from './permissions';
@@ -30,5 +31,6 @@ export const NAV: NavItem[] = [
   { href: '/atendimentos', label: 'Atendimentos', icon: Stethoscope, any: ['clinical:write'] },
   { href: '/prontuario', label: 'Prontuário', icon: FileText, any: ['clinical:read'] },
   { href: '/prescricao', label: 'Prescrição', icon: Pill, any: ['prescription:create'] },
+  { href: '/relatorios', label: 'Relatórios', icon: BarChart3, any: ['reports:read'] },
   { href: '/auditoria', label: 'Auditoria', icon: ShieldCheck, any: ['audit:read'] },
 ];
