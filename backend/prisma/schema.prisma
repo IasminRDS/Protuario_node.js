@@ -1076,3 +1076,26 @@ model AgendaEvento {
   @@index([status])
   @@map("agenda_evento")
 }
+
+// ###########################################################################
+// FASE 5 — LOG DE IMPORTAÇÃO CSV (auditoria/LGPD de cada import de pacientes).
+// Registrado SEMPRE (sucesso ou falha), com hash SHA-256 do arquivo e o
+// detalhamento de erros por linha (erros_json).
+// ###########################################################################
+model ImportLog {
+  id          BigInt   @id @default(autoincrement())
+  usuarioId   BigInt   @map("user_id")
+  hospitalId  String?  @map("hospital_id") @db.Uuid
+  filename    String   @db.VarChar(255)
+  fileHash    String?  @map("file_hash") @db.VarChar(64) // SHA-256
+  totalLinhas Int      @map("total_linhas")
+  validos     Int      @default(0)
+  invalidos   Int      @default(0)
+  sucesso     Boolean
+  errosJson   Json?    @map("erros_json")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  @@index([hospitalId])
+  @@index([usuarioId])
+  @@map("import_log")
+}
