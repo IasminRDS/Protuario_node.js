@@ -46,6 +46,7 @@ import { CirurgiaModule } from './modules/cirurgia/cirurgia.module';
 import { PdfModule } from './modules/pdf/pdf.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { CsvImportModule } from './modules/csv-import/csv-import.module';
+import { BackupModule } from './modules/backup/backup.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { CsvImportModule } from './modules/csv-import/csv-import.module';
     PdfModule,
     ReportsModule,
     CsvImportModule,
+    BackupModule,
   ],
 
   providers: [
