@@ -9,6 +9,7 @@ import {
   Ambulance,
   BedDouble,
   BarChart3,
+  Upload,
   type LucideIcon,
 } from 'lucide-react';
 import type { Permission } from './permissions';
@@ -32,5 +33,6 @@ export const NAV: NavItem[] = [
   { href: '/prontuario', label: 'Prontuário', icon: FileText, any: ['clinical:read'] },
   { href: '/prescricao', label: 'Prescrição', icon: Pill, any: ['prescription:create'] },
   { href: '/relatorios', label: 'Relatórios', icon: BarChart3, any: ['reports:read'] },
+  { href: '/importacao', label: 'Importar CSV', icon: Upload, any: ['patient:create'] },
   { href: '/auditoria', label: 'Auditoria', icon: ShieldCheck, any: ['audit:read'] },
 ];
