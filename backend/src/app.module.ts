@@ -48,6 +48,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { CsvImportModule } from './modules/csv-import/csv-import.module';
 import { BackupModule } from './modules/backup/backup.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { ExportModule } from './modules/export/export.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { AuditModule } from './modules/audit/audit.module';
     ReportsModule,
     CsvImportModule,
     BackupModule,
+    ExportModule,
   ],
 
   providers: [
