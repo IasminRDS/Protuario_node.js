@@ -8,7 +8,7 @@ import {
 import { parse } from 'csv-parse';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { AuditoriaService } from '../auditoria/auditoria.service';
+import { AuditExportService } from '../audit/audit.service';
 import { currentHospitalId } from '../../shared/tenant/tenant-context';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
 import { isValidCpf, limparCpf } from './validators/cpf.validator';
@@ -42,7 +42,7 @@ interface PacienteNovo {
 export class CsvImportService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditoria: AuditoriaService,
+    private readonly auditExport: AuditExportService,
   ) {}
 
   /**
@@ -256,14 +256,21 @@ export class CsvImportService {
         errosJson: erros as unknown as Prisma.InputJsonValue,
       },
     });
-    await this.auditoria.registrar({
-      usuarioId: actor.id,
-      modulo: 'IMPORT_CSV',
-      operacao: 'IMPORTAR_PACIENTES',
-      entity: 'paciente',
-      objeto: file.originalname,
-      resultado: sucesso ? 'SUCESSO' : 'FALHA',
-      reason: `Importação CSV (${validos}/${total} válidos) hash=${fileHash.slice(0, 12)}`,
+    // Auditoria LGPD unificada (import_log guarda o detalhe; aqui a trilha padrão).
+    await this.auditExport.logExport({
+      tipo: 'CSV_IMPORT',
+      acao: 'IMPORTAR',
+      status: sucesso ? 'SUCESSO' : 'FALHA',
+      userId: actor.id,
+      hospitalId,
+      metadata: {
+        filename: file.originalname,
+        fileHash,
+        total,
+        validos,
+        invalidos,
+        erros: erros.slice(0, 50),
+      },
     });
   }
 }

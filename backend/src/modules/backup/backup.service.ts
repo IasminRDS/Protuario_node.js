@@ -5,7 +5,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { AuditoriaService } from '../auditoria/auditoria.service';
+import { AuditExportService } from '../audit/audit.service';
+import { currentHospitalId } from '../../shared/tenant/tenant-context';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
 
 export type BackupFormat = 'sql' | 'dump';
@@ -36,7 +37,7 @@ interface Conn {
 export class BackupService {
   private readonly logger = new Logger(BackupService.name);
 
-  constructor(private readonly auditoria: AuditoriaService) {}
+  constructor(private readonly auditExport: AuditExportService) {}
 
   stream(res: Response, actor: AuthenticatedUser, format: BackupFormat): void {
     const conn = this.parseDbUrl(); // pode lançar (500) antes de qualquer header
@@ -162,16 +163,13 @@ export class BackupService {
     filename: string,
     motivo?: string,
   ): Promise<void> {
-    await this.auditoria.registrar({
-      usuarioId: actor.id,
-      modulo: 'BACKUP',
-      operacao: 'GERAR_BACKUP',
-      entity: 'database',
-      objeto: filename,
-      resultado: sucesso ? 'SUCESSO' : 'FALHA',
-      reason: sucesso
-        ? 'Backup lógico do banco (pg_dump)'
-        : `Falha no backup: ${motivo ?? 'desconhecido'}`,
+    await this.auditExport.logExport({
+      tipo: 'BACKUP',
+      acao: 'GERAR_BACKUP',
+      status: sucesso ? 'SUCESSO' : 'FALHA',
+      userId: actor.id,
+      hospitalId: currentHospitalId(), // SuperAdmin: null (cross-tenant)
+      metadata: { filename, ...(motivo ? { erro: motivo } : {}) },
     });
   }
 }

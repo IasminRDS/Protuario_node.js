@@ -414,6 +414,9 @@ model Auditoria {
   entityId     String?  @map("entity_id") @db.VarChar(100)
   device       String?  @db.VarChar(255)
   reason       String?  @db.Text
+  // Metadados estruturados do evento (filename, total, erro, format, ...) — usado
+  // pela auditoria unificada de exportações/importações (LGPD).
+  metadata     Json?
   // F0.4: tempo causal por agregado (entity:entityId). Monotônico/gapless por
   // agregado; null para eventos sem agregado (ex.: AUTH).
   aggregateSeq BigInt?  @map("aggregate_seq")

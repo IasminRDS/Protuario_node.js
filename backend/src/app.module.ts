@@ -47,6 +47,7 @@ import { PdfModule } from './modules/pdf/pdf.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { CsvImportModule } from './modules/csv-import/csv-import.module';
 import { BackupModule } from './modules/backup/backup.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { BackupModule } from './modules/backup/backup.module';
     CirurgiaModule,
 
     // FASE 5 — produção
+    AuditModule, // auditoria de exportação unificada (LGPD) — global
     PdfModule,
     ReportsModule,
     CsvImportModule,

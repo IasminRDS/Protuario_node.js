@@ -22,6 +22,10 @@ export interface RegistrarAuditoriaInput {
   entityId?: string;
   device?: string;
   reason?: string;
+  metadata?: Prisma.InputJsonValue;
+  // Override explícito do tenant (default: hospital da requisição). Usado por
+  // fluxos que precisam fixar o hospitalId (ex.: auditoria de export por hospital).
+  hospitalId?: string | null;
 }
 
 /**
@@ -212,7 +216,12 @@ export class AuditoriaService {
           entityId: input.entityId,
           device: input.device,
           reason: input.reason,
-          hospitalId: currentHospitalId(), // tenant automático da requisição
+          metadata: input.metadata,
+          // Tenant: override explícito quando fornecido; senão o hospital da requisição.
+          hospitalId:
+            input.hospitalId !== undefined
+              ? input.hospitalId
+              : currentHospitalId(),
         },
       });
       return eventId;
