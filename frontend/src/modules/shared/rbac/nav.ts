@@ -24,6 +24,8 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Uma linha sobre o que a funcionalidade faz (cards do dashboard). */
+  descricao?: string;
   /** permissão(ões) que liberam o item (qualquer uma). Vazio = todos autenticados. */
   any?: Permission[];
   /**
@@ -45,46 +47,139 @@ export interface NavGroup {
 export const NAV_GROUPS: NavGroup[] = [
   {
     titulo: null,
-    items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
+    items: [
+      {
+        href: '/dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        descricao: 'Visão operacional do dia e acesso rápido às funcionalidades.',
+      },
+    ],
   },
   {
     titulo: 'Atendimento',
     items: [
-      { href: '/pacientes', label: 'Pacientes', icon: Users, any: ['patient:read'] },
-      { href: '/pronto-socorro', label: 'Pronto-Socorro', icon: Ambulance, any: ['emergency:write'] },
-      { href: '/triagem', label: 'Triagem', icon: ClipboardList, any: ['triage:write'] },
-      { href: '/atendimentos', label: 'Atendimentos', icon: Stethoscope, any: ['clinical:write'] },
-      { href: '/prontuario', label: 'Prontuário', icon: FileText, any: ['clinical:read'] },
-      { href: '/prescricao', label: 'Prescrição', icon: Pill, any: ['prescription:create'] },
-      { href: '/internacao', label: 'Internação', icon: BedDouble, any: ['internment:write'] },
+      {
+        href: '/pacientes',
+        label: 'Pacientes',
+        icon: Users,
+        descricao: 'Cadastro, busca e Sumário do Paciente.',
+        any: ['patient:read'],
+      },
+      {
+        href: '/pronto-socorro',
+        label: 'Pronto-Socorro',
+        icon: Ambulance,
+        descricao: 'Fila e atendimento de urgência e emergência.',
+        any: ['emergency:write'],
+      },
+      {
+        href: '/triagem',
+        label: 'Triagem',
+        icon: ClipboardList,
+        descricao: 'Sinais vitais e classificação de risco Manchester.',
+        any: ['triage:write'],
+      },
+      {
+        href: '/atendimentos',
+        label: 'Atendimentos',
+        icon: Stethoscope,
+        descricao: 'Consultas e evolução clínica ambulatorial.',
+        any: ['clinical:write'],
+      },
+      {
+        href: '/prontuario',
+        label: 'Prontuário',
+        icon: FileText,
+        descricao: 'Histórico clínico longitudinal do paciente.',
+        any: ['clinical:read'],
+      },
+      {
+        href: '/prescricao',
+        label: 'Prescrição',
+        icon: Pill,
+        descricao: 'Prescrição com catálogo nacional de medicamentos (RENAME).',
+        any: ['prescription:create'],
+      },
+      {
+        href: '/internacao',
+        label: 'Internação',
+        icon: BedDouble,
+        descricao: 'Leitos, internações, evoluções e altas.',
+        any: ['internment:write'],
+      },
     ],
   },
   {
     titulo: 'Vigilância e Regulação',
     items: [
-      { href: '/vigilancia', label: 'Vigilância (SINAN)', icon: Siren, any: ['surveillance:read'] },
-      { href: '/regulacao', label: 'Regulação de vagas', icon: ArrowLeftRight, any: ['regulation:read'] },
-      { href: '/epidemiologia', label: 'Epidemiologia', icon: Map, any: ['reports:read'] },
+      {
+        href: '/vigilancia',
+        label: 'Vigilância (SINAN)',
+        icon: Siren,
+        descricao: 'Fila de notificações compulsórias geradas por CID notificável.',
+        any: ['surveillance:read'],
+      },
+      {
+        href: '/regulacao',
+        label: 'Regulação de vagas',
+        icon: ArrowLeftRight,
+        descricao: 'Fila de encaminhamentos entre unidades com parecer do regulador.',
+        any: ['regulation:read'],
+      },
+      {
+        href: '/epidemiologia',
+        label: 'Epidemiologia',
+        icon: Map,
+        descricao: 'Painel regional: agravos, leitos, regulação e Manchester.',
+        any: ['reports:read'],
+      },
     ],
   },
   {
     titulo: 'Gestão',
     items: [
-      { href: '/relatorios', label: 'Relatórios', icon: BarChart3, any: ['reports:read'] },
-      { href: '/importacao', label: 'Importar CSV', icon: Upload, any: ['patient:create'] },
+      {
+        href: '/relatorios',
+        label: 'Relatórios',
+        icon: BarChart3,
+        descricao: 'Indicadores e relatórios gerenciais.',
+        any: ['reports:read'],
+      },
+      {
+        href: '/importacao',
+        label: 'Importar CSV',
+        icon: Upload,
+        descricao: 'Importação de pacientes em lote (validação estrita).',
+        any: ['patient:create'],
+      },
       {
         href: '/exportacao',
         label: 'Exportação',
         icon: DownloadCloud,
+        descricao: 'Exportação de dados e backup — auditados (LGPD), exigem MFA.',
         // RBAC por perfil: export (Admin/Recepção) ou backup (SuperAdmin).
         roles: ['Administrador', 'Recepcao', 'SuperAdmin'],
       },
-      { href: '/auditoria', label: 'Auditoria', icon: ShieldCheck, any: ['audit:read'] },
+      {
+        href: '/auditoria',
+        label: 'Auditoria',
+        icon: ShieldCheck,
+        descricao: 'Trilha de auditoria: quem fez o quê, quando e de onde.',
+        any: ['audit:read'],
+      },
     ],
   },
   {
     titulo: 'Conta',
-    items: [{ href: '/conta', label: 'Minha conta', icon: UserCog }],
+    items: [
+      {
+        href: '/conta',
+        label: 'Minha conta',
+        icon: UserCog,
+        descricao: 'Identificação e verificação em duas etapas (MFA).',
+      },
+    ],
   },
 ];
 

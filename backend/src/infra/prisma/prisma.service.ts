@@ -62,13 +62,19 @@ export class PrismaService
       // RLS — pin de leitura: envolve a leitura de modelo tenant numa tx curta
       // com SET LOCAL app.hospital_id, garantindo GUC + query na MESMA conexão.
       // Guardas: só com RLS_ENABLED, só READ em TENANT_MODELS, só com hospitalId
-      // e apenas quando NÃO há tx de request (currentTx) — se já houver, o GUC
-      // foi setado pelo interceptor e a query roda naquela tx (evita recursão:
-      // ao re-despachar em `tx`, este middleware roda de novo com currentTx
-      // definido e cai direto no `next`).
+      // e apenas quando a query NÃO está já numa transação:
+      //  - `params.runInTransaction` é o sinal do PRÓPRIO Prisma de que a query
+      //    roda dentro de uma tx (o re-despacho abaixo, a tx-per-request do
+      //    interceptor, ou um $transaction de service) — nesses casos o GUC já
+      //    foi/será setado por quem abriu a tx, e re-pinar causaria recursão.
+      //  - NÃO usar estado compartilhado (ctx) como guarda: queries CONCORRENTES
+      //    da mesma request (findMany+count em Promise.all) se atropelam; e o
+      //    AsyncLocalStorage não sobrevive ao agendador interno do Prisma
+      //    (o guard "some" e o pin re-engata até esgotar o pool — P2028).
       if (
         RLS_ENABLED &&
         ctx &&
+        !params.runInTransaction &&
         !ctx.txClient &&
         ctx.hospitalId &&
         TENANT_MODELS.has(scoped.model ?? '') &&
@@ -79,19 +85,13 @@ export class PrismaService
         const action = scoped.action as string;
         return this.$transaction(async (tx) => {
           await setTenantGuc(tx, hospitalId);
-          const prev = ctx.txClient;
-          ctx.txClient = tx; // guarda de recursão + roteia o re-despacho p/ tx
-          try {
-            const delegate = (
-              tx as unknown as Record<
-                string,
-                Record<string, (a: unknown) => Promise<unknown>>
-              >
-            )[delegateName(model)];
-            return await delegate[action](scoped.args);
-          } finally {
-            ctx.txClient = prev;
-          }
+          const delegate = (
+            tx as unknown as Record<
+              string,
+              Record<string, (a: unknown) => Promise<unknown>>
+            >
+          )[delegateName(model)];
+          return delegate[action](scoped.args);
         });
       }
 

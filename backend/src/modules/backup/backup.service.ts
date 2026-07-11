@@ -143,7 +143,10 @@ export class BackupService {
   }
 
   private parseDbUrl(): Conn {
-    const raw = process.env.DATABASE_URL;
+    // RLS: pg_dump precisa da role DONA — como não-dona (prontuario_app) ele
+    // recusa tabelas com RLS (ou dumparia só as linhas visíveis, i.e. nenhuma).
+    const raw =
+      process.env.MAINTENANCE_DATABASE_URL || process.env.DATABASE_URL;
     if (!raw) {
       throw new ServiceUnavailableException('DATABASE_URL não configurado.');
     }

@@ -41,6 +41,8 @@ services:
       #    (migrations precisam de ownership; o comando abaixo troca a URL).
       DATABASE_URL: postgresql://prontuario_app:prontuario_app@postgres:5432/prontuario_e2
       MIGRATE_DATABASE_URL: postgresql://prontuario:prontuario@postgres:5432/prontuario_e2
+      # Manutenção (role DONA): refresh de materialized views + pg_dump.
+      MAINTENANCE_DATABASE_URL: postgresql://prontuario:prontuario@postgres:5432/prontuario_e2
       RLS_ENABLED: "true"
       JWT_ACCESS_SECRET: change-me-access
       JWT_REFRESH_SECRET: change-me-refresh

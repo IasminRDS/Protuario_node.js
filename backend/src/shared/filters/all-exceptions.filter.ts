@@ -68,8 +68,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else {
+      // Erros de banco 4xx: inclui código/motivo Prisma no log (server-side
+      // apenas) — sem isso, um DB_ERROR intermitente é indiagnosticável.
+      const detalhe =
+        exception instanceof Prisma.PrismaClientKnownRequestError
+          ? ` — ${exception.code}: ${exception.message.split('\n').filter(Boolean).pop()}`
+          : '';
       this.logger.warn(
-        `[${traceId}] ${request.method} ${request.url} -> ${status} ${code}`,
+        `[${traceId}] ${request.method} ${request.url} -> ${status} ${code}${detalhe}`,
       );
     }
 

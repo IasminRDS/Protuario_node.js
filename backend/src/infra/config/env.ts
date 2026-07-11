@@ -12,6 +12,11 @@ export const envSchema = z.object({
 
   DATABASE_URL: z.string().url(),
 
+  // Conexão de MANUTENÇÃO (role DONA): REFRESH de materialized views e pg_dump
+  // exigem ownership/bypass de RLS — não podem rodar como prontuario_app.
+  // Sem valor, cai em DATABASE_URL (ambientes sem RLS ativo).
+  MAINTENANCE_DATABASE_URL: z.string().url().optional(),
+
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_SECRET: z.string().min(16),
