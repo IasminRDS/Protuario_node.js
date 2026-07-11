@@ -1,7 +1,9 @@
+import { ThemeToggle } from './ThemeToggle';
+
 /**
  * Barra gov.br (Padrão Digital de Governo): faixa institucional no topo de
- * todas as páginas, com o assinatura "gov.br" e links padrão do governo
- * federal. Estática e servida em SSR — sem JS.
+ * todas as páginas, com a assinatura "gov.br", links padrão do governo
+ * federal e o alternador de tema claro/escuro.
  */
 export function GovBar() {
   return (
@@ -10,32 +12,35 @@ export function GovBar() {
         <span className="font-bold tracking-tight">
           gov<span className="text-govbr-yellow">.br</span>
         </span>
-        <nav aria-label="Links institucionais" className="flex gap-4">
-          <a
-            className="hover:underline"
-            href="https://www.gov.br/pt-br/orgaos-do-governo"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Órgãos do Governo
-          </a>
-          <a
-            className="hover:underline"
-            href="https://www.gov.br/acessoainformacao"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Acesso à Informação
-          </a>
-          <a
-            className="hidden hover:underline sm:inline"
-            href="https://www.gov.br/governodigital/pt-br/acessibilidade-digital"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Acessibilidade
-          </a>
-        </nav>
+        <div className="flex items-center gap-4">
+          <nav aria-label="Links institucionais" className="flex gap-4">
+            <a
+              className="hover:underline"
+              href="https://www.gov.br/pt-br/orgaos-do-governo"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Órgãos do Governo
+            </a>
+            <a
+              className="hover:underline"
+              href="https://www.gov.br/acessoainformacao"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Acesso à Informação
+            </a>
+            <a
+              className="hidden hover:underline sm:inline"
+              href="https://www.gov.br/governodigital/pt-br/acessibilidade-digital"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Acessibilidade
+            </a>
+          </nav>
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   );
