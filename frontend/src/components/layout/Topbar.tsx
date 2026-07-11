@@ -1,8 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { LogOut, UserCircle2, Building2, ShieldAlert } from 'lucide-react';
+import {
+  LogOut,
+  UserCircle2,
+  Building2,
+  ShieldAlert,
+  WifiOff,
+  CloudUpload,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useOfflineStore } from '@/lib/offline-queue';
 import { Button } from '@/components/ui/primitives';
 
 // Ambiente derivado da URL da API (determinístico, sem suposição).
@@ -56,6 +64,44 @@ function TenantContextBar() {
   );
 }
 
+/**
+ * Indicador do modo UBS offline (ADR-10): mostra ausência de rede e o tamanho
+ * da fila local aguardando sincronização — o operador nunca fica na dúvida se
+ * o registro "foi ou não foi".
+ */
+function OfflineIndicator() {
+  const online = useOfflineStore((s) => s.online);
+  const pending = useOfflineStore((s) => s.pending);
+  const syncing = useOfflineStore((s) => s.syncing);
+
+  if (online && pending === 0) return null;
+
+  return (
+    <div
+      className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+        online
+          ? 'bg-blue-50 text-blue-700 ring-blue-200'
+          : 'bg-amber-50 text-amber-800 ring-amber-200'
+      }`}
+      title={
+        online
+          ? 'Sincronizando registros feitos offline'
+          : 'Sem conexão — registros ficam na fila local e sobem quando a rede voltar'
+      }
+    >
+      {online ? (
+        <CloudUpload className={`h-4 w-4 ${syncing ? 'animate-pulse' : ''}`} aria-hidden />
+      ) : (
+        <WifiOff className="h-4 w-4" aria-hidden />
+      )}
+      <span>
+        {online ? 'Sincronizando' : 'Offline'}
+        {pending > 0 ? ` — ${pending} pendente${pending > 1 ? 's' : ''}` : ''}
+      </span>
+    </div>
+  );
+}
+
 export function Topbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -69,6 +115,7 @@ export function Topbar() {
     <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-6">
       <TenantContextBar />
       <div className="flex items-center gap-4">
+        <OfflineIndicator />
         <div className="flex items-center gap-2 text-sm">
           <UserCircle2 className="h-5 w-5 text-slate-400" />
           <span className="font-medium text-slate-700">{user?.login}</span>

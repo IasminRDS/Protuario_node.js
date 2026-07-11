@@ -5,6 +5,8 @@
   "description": "Sistema de Prontuário Eletrônico (S-PE) — frontend hospitalar (Next.js 16)",
   "scripts": {
     "dev": "next dev -p 3001",
+    "dev:alt": "next dev -p 4300",
+    "start:alt": "next start -p 4300",
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint"

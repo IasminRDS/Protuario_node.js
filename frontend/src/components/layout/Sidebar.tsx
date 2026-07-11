@@ -14,7 +14,12 @@ export function Sidebar() {
   const { canAny } = usePermissions();
   if (!user) return null;
 
-  const items = NAV.filter((i) => !i.any || canAny(i.any));
+  const items = NAV.filter((i) => {
+    // Item por perfil (ex.: export/backup): visível se o perfil casar.
+    if (i.roles) return i.roles.includes(user.perfil);
+    // Item por permissão granular (ou liberado a todos autenticados).
+    return !i.any || canAny(i.any);
+  });
 
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-slate-200 bg-white">

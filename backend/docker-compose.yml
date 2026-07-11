@@ -35,13 +35,33 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://prontuario:prontuario@postgres:5432/prontuario_e2
+      # RLS ATIVO (gate rls-phase1.e2e 7/7 verde em 2026-07-10):
+      #  - o APP conecta como a role NÃO-dona `prontuario_app` (RLS enforced);
+      #  - `migrate deploy` roda como a role DONA via MIGRATE_DATABASE_URL
+      #    (migrations precisam de ownership; o comando abaixo troca a URL).
+      DATABASE_URL: postgresql://prontuario_app:prontuario_app@postgres:5432/prontuario_e2
+      MIGRATE_DATABASE_URL: postgresql://prontuario:prontuario@postgres:5432/prontuario_e2
+      RLS_ENABLED: "true"
       JWT_ACCESS_SECRET: change-me-access
       JWT_REFRESH_SECRET: change-me-refresh
-      CORS_ORIGINS: http://localhost:3001
+      CORS_ORIGINS: http://localhost:3001,http://localhost:4300
+      # Rate limit — ATENÇÃO: throttler v6 usa TTL em MILISSEGUNDOS (60000 = 60s).
+      THROTTLE_TTL: 60000
+      THROTTLE_LIMIT: 100
+      # Exportação de pacientes (LGPD)
+      EXPORT_MAX_ROWS: 100000
+      EXPORT_TIMEOUT_MS: 300000
+      EXPORT_THROTTLE_LIMIT: 10
+      EXPORT_THROTTLE_TTL_MS: 60000
+      # Backup (pg_dump instalado na imagem — ver Dockerfile runtime stage)
+      PG_DUMP_PATH: pg_dump
+      BACKUP_TIMEOUT_MS: 600000
+      BACKUP_THROTTLE_LIMIT: 3
+      BACKUP_THROTTLE_TTL_MS: 300000
     ports:
       - '3000:3000'
-    command: sh -c "npx prisma migrate deploy && node dist/src/main.js"
+    # Migrations como DONA (MIGRATE_DATABASE_URL); app como prontuario_app (RLS).
+    command: sh -c "DATABASE_URL=$$MIGRATE_DATABASE_URL npx prisma migrate deploy && node dist/src/main.js"
 
 volumes:
   pgdata:

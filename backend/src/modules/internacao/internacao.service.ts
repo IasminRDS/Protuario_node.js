@@ -19,6 +19,7 @@ import {
   CreateLeitoDto,
   CreateSetorDto,
 } from './dto/internacao.dto';
+import { VigilanciaService } from '../vigilancia/vigilancia.service';
 
 interface ActorCtx {
   actorId: string;
@@ -42,6 +43,7 @@ export class InternacaoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
+    private readonly vigilancia: VigilanciaService,
   ) {}
 
   /** F0.1/F0.2: reusa a tx da requisição (mutações) ou abre a própria. */
@@ -169,6 +171,15 @@ export class InternacaoService {
       return created;
     });
 
+    // Vigilância (SINAN): CID de admissão notificável abre ficha automática.
+    await this.vigilancia.avaliarCid({
+      cid: internacao.cidPrincipal,
+      pacienteId: internacao.pacienteId,
+      origem: 'INTERNACAO',
+      origemId: internacao.id.toString(),
+      ctx,
+    });
+
     return internacao;
   }
 
@@ -255,7 +266,7 @@ export class InternacaoService {
 
   /** Dá alta à internação e libera o leito para higienização. */
   async darAlta(id: string, dto: AltaDto, ctx: ActorCtx) {
-    return this.runInTx(async (tx) => {
+    const alta = await this.runInTx(async (tx) => {
       const internacao = await tx.internacao.findUnique({
         where: { id: BigInt(id) },
       });
@@ -299,5 +310,16 @@ export class InternacaoService {
       });
       return atualizada;
     });
+
+    // Vigilância (SINAN): CID de alta notificável abre ficha automática.
+    await this.vigilancia.avaliarCid({
+      cid: alta.cidAlta,
+      pacienteId: alta.pacienteId,
+      origem: 'ALTA',
+      origemId: alta.id.toString(),
+      ctx,
+    });
+
+    return alta;
   }
 }

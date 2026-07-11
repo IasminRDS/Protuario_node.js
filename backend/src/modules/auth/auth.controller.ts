@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Ip, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
@@ -6,6 +6,7 @@ import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.in
 import { AuthService } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { MfaCodeDto, MfaVerifyDto } from './dto/mfa.dto';
 import { RefreshDto } from './dto/refresh.dto';
 
 @ApiTags('Autenticação')
@@ -38,6 +39,63 @@ export class AuthController {
   async logout(@CurrentUser() user: AuthenticatedUser, @Ip() ip: string) {
     await this.authService.logout(user.id, ip);
     return { data: null, message: 'Sessão encerrada.' };
+  }
+
+  @Public()
+  @Post('mfa/verify')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Segunda etapa do login: código TOTP → tokens.' })
+  async mfaVerify(@Body() dto: MfaVerifyDto, @Ip() ip: string) {
+    const tokens = await this.authService.mfaVerify(dto.mfaToken, dto.code, ip);
+    return { data: tokens, message: 'Autenticado com MFA.' };
+  }
+
+  @ApiBearerAuth()
+  @Get('mfa/status')
+  @ApiOperation({ summary: 'Status do MFA do usuário e da sessão atual.' })
+  mfaStatus(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      data: {
+        enabled: user.mfaEnabled === true,
+        verified: user.mfaVerified === true,
+      },
+      message: 'Status do MFA.',
+    };
+  }
+
+  @ApiBearerAuth()
+  @Post('mfa/setup')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Gerar segredo TOTP (QR) para ativação do MFA.' })
+  async mfaSetup(@CurrentUser() user: AuthenticatedUser) {
+    const data = await this.authService.mfaSetup(user.id);
+    return { data, message: 'Escaneie o QR no autenticador e confirme o código.' };
+  }
+
+  @ApiBearerAuth()
+  @Post('mfa/enable')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Confirmar código do autenticador e ativar MFA.' })
+  async mfaEnable(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: MfaCodeDto,
+    @Ip() ip: string,
+  ) {
+    await this.authService.mfaEnable(user.id, dto.code, ip);
+    return { data: null, message: 'MFA ativado.' };
+  }
+
+  @ApiBearerAuth()
+  @Post('mfa/disable')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Desativar MFA mediante código válido.' })
+  async mfaDisable(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: MfaCodeDto,
+    @Ip() ip: string,
+  ) {
+    await this.authService.mfaDisable(user.id, dto.code, ip);
+    return { data: null, message: 'MFA desativado.' };
   }
 
   @ApiBearerAuth()

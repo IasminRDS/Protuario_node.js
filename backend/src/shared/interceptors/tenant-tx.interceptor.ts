@@ -7,6 +7,7 @@ import {
 import { from, lastValueFrom, Observable } from 'rxjs';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { tenantStore } from '../tenant/tenant-context';
+import { RLS_ENABLED, setTenantGuc } from '../tenant/rls';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -38,6 +39,13 @@ export class TenantTxInterceptor implements NestInterceptor {
       this.prisma.$transaction(
         async (tx) => {
           store.txClient = tx; // isolado por request (ALS) → I4
+          // RLS: propaga o tenant para a sessão do banco NESTA tx (SET LOCAL).
+          // Só quando há hospitalId — super-admin (bypassTenant) fica escopado
+          // nesta fase (B3): sem GUC, a policy é fail-closed. Owner bypassa RLS,
+          // então isto é inerte até virar a chave (RLS_ENABLED + role app).
+          if (RLS_ENABLED && store.hospitalId) {
+            await setTenantGuc(tx, store.hospitalId);
+          }
           try {
             return await lastValueFrom(next.handle());
           } finally {

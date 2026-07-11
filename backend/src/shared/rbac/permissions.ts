@@ -21,6 +21,13 @@ export enum Permission {
 
   // FASE 5 — gestão/relatórios
   REPORTS_READ = 'reports:read', // leitura de relatórios (views materializadas)
+
+  // FASE 6 — vigilância epidemiológica (SINAN) e regulação de vagas
+  SURVEILLANCE_READ = 'surveillance:read', // fila de notificações compulsórias
+  SURVEILLANCE_WRITE = 'surveillance:write', // enviar/descartar/abrir ficha
+  REGULATION_READ = 'regulation:read', // fila de regulação (encaminhamentos)
+  REGULATION_WRITE = 'regulation:write', // solicitar encaminhamento
+  REGULATION_DECIDE = 'regulation:decide', // parecer do regulador (autorizar/negar/agendar)
 }
 
 const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
@@ -38,6 +45,10 @@ const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
     Permission.EXAM_WRITE,
     Permission.SURGERY_WRITE,
     Permission.REPORTS_READ,
+    Permission.SURVEILLANCE_READ,
+    Permission.SURVEILLANCE_WRITE,
+    Permission.REGULATION_READ,
+    Permission.REGULATION_WRITE,
   ],
   [PerfilNome.ENFERMEIRO]: [
     Permission.PATIENT_READ,
@@ -47,6 +58,9 @@ const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
     Permission.EXAM_WRITE,
     Permission.INTERNMENT_WRITE,
     Permission.MED_ADMIN_WRITE,
+    Permission.SURVEILLANCE_READ,
+    Permission.SURVEILLANCE_WRITE,
+    Permission.REGULATION_READ,
   ],
   [PerfilNome.FARMACEUTICO]: [Permission.PATIENT_READ],
   [PerfilNome.RECEPCAO]: [Permission.PATIENT_READ, Permission.PATIENT_CREATE],
@@ -55,6 +69,10 @@ const ROLE_PERMISSIONS: Record<PerfilNome, Permission[]> = {
     Permission.CLINICAL_READ,
     Permission.AUDIT_READ,
     Permission.REPORTS_READ,
+    Permission.SURVEILLANCE_READ,
+    Permission.SURVEILLANCE_WRITE,
+    Permission.REGULATION_READ,
+    Permission.REGULATION_DECIDE,
   ],
 };
 

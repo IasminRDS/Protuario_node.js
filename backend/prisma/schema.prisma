@@ -43,6 +43,10 @@ model Usuario {
   refreshTokenHash String? @map("refresh_token_hash") @db.VarChar(255)
   loginAttempts    Int     @default(0) @map("login_attempts")
 
+  // MFA TOTP (RFC 6238): segredo base32; habilitado só após confirmação de código
+  mfaSecret  String? @map("mfa_secret") @db.VarChar(64)
+  mfaEnabled Boolean @default(false) @map("mfa_enabled")
+
   // auditoria de campos
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -132,6 +136,7 @@ model Paciente {
   atendimentosPs    AtendimentoPS[]
   aihs              AIH[]
   apacs             APAC[]
+  notificacoes      NotificacaoCompulsoria[]
 
   @@index([nome])
   @@index([deletedAt])
@@ -962,7 +967,7 @@ model Encaminhamento {
   motivo              String    @db.Text
   hipoteseDiagnostica String?   @map("hipotese_diagnostica") @db.VarChar(200)
   cid                 String?   @db.VarChar(10)
-  status              String    @default("solicitado") @db.VarChar(20) // solicitado|agendado|realizado|cancelado
+  status              String    @default("solicitado") @db.VarChar(20) // solicitado|em_analise|autorizado|agendado|realizado|negado|devolvido|cancelado
   dataSolicitacao     DateTime  @default(now()) @map("data_solicitacao")
   dataAgendada        DateTime? @map("data_agendada")
   dataRealizacao      DateTime? @map("data_realizacao")
@@ -970,9 +975,16 @@ model Encaminhamento {
   retornoInfo         String?   @map("retorno_info") @db.Text
   criadoPor           BigInt?   @map("criado_por")
 
+  // --- Regulação de vagas (SISREG-like): parecer do médico regulador --------
+  reguladoPor      BigInt?   @map("regulado_por")
+  dataRegulacao    DateTime? @map("data_regulacao")
+  parecerRegulacao String?   @map("parecer_regulacao") @db.Text
+  unidadeDestino   String?   @map("unidade_destino") @db.VarChar(200)
+
   paciente Paciente @relation(fields: [pacienteId], references: [id])
 
   @@index([status])
+  @@index([prioridade])
   @@map("encaminhamento")
 }
 
@@ -1101,4 +1113,42 @@ model ImportLog {
   @@index([hospitalId])
   @@index([usuarioId])
   @@map("import_log")
+}
+
+// ###########################################################################
+// FASE 6 — VIGILÂNCIA EPIDEMIOLÓGICA: notificação compulsória (SINAN).
+// Gerada AUTOMATICAMENTE quando um CID de agravo notificável é registrado
+// (internação, alta, regulação) ou manualmente pelo profissional. Fluxo:
+// PENDENTE → ENVIADA (à vigilância) | DESCARTADA (falso positivo, com motivo).
+// ###########################################################################
+model NotificacaoCompulsoria {
+  id         BigInt  @id @default(autoincrement())
+  pacienteId BigInt  @map("paciente_id")
+  hospitalId String? @map("hospital_id") @db.Uuid // tenant
+
+  // Origem do disparo (rastreabilidade): INTERNACAO|ALTA|REGULACAO|MANUAL
+  origem   String  @db.VarChar(20)
+  origemId String? @map("origem_id") @db.VarChar(50) // id do registro de origem
+
+  cid      String  @db.VarChar(10) // CID-10 que disparou
+  agravo   String  @db.VarChar(200) // nome do agravo (catálogo em código)
+  imediata Boolean @default(false) // notificação imediata (≤24h) vs semanal
+
+  status        String    @default("PENDENTE") @db.VarChar(20) // PENDENTE|ENVIADA|DESCARTADA
+  observacoes   String?   @db.Text
+  motivoDescarte String?  @map("motivo_descarte") @db.Text
+  criadoPor     BigInt?   @map("criado_por")
+  resolvidaPor  BigInt?   @map("resolvida_por")
+  resolvidaEm   DateTime? @map("resolvida_em")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  @@index([status])
+  @@index([cid])
+  @@index([hospitalId])
+  @@index([createdAt])
+  @@map("notificacao_compulsoria")
 }

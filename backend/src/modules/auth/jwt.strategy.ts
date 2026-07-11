@@ -54,6 +54,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       perfil: usuario.perfil.nome,
       hospitalId: usuario.hospitalId ?? null,
       superAdmin,
+      mfaEnabled: usuario.mfaEnabled,
+      mfaVerified: payload.mfa === true,
     };
   }
 }

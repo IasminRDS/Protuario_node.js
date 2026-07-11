@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { AuditoriaService } from '../auditoria/auditoria.service';
+import { AuditExportService, ExportTipo } from '../audit/audit.service';
 import { currentHospitalId } from '../../shared/tenant/tenant-context';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
 import { MedicoAssinante, PacientePdf, PdfMeta } from './templates/layout';
@@ -18,7 +18,7 @@ export interface PreparedPdf {
 export class PdfService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditoria: AuditoriaService,
+    private readonly auditExport: AuditExportService,
   ) {}
 
   /** Filtro de tenant p/ modelos NÃO cobertos pelo tenant-guard (isolamento manual). */
@@ -76,21 +76,23 @@ export class PdfService {
 
   private async auditar(
     actor: AuthenticatedUser,
-    entity: string,
+    tipo: ExportTipo,
+    documento: string,
     entityId: string,
     docId: string,
   ): Promise<void> {
-    // Rastreabilidade LGPD da exportação (userId, hospitalId, ação, recurso,
-    // timestamp e finalidade). O hospitalId é anexado automaticamente.
-    await this.auditoria.registrar({
-      usuarioId: actor.id,
-      modulo: 'PDF',
-      operacao: 'EXPORTAR_PDF',
-      entity,
+    // Trilha LGPD UNIFICADA (mesma taxonomia de export/backup/import): tipo/acao
+    // padronizados + metadata estruturado. entity/entityId (indexados) preservam
+    // a "trilha de acesso do paciente". hospitalId anexado automaticamente.
+    await this.auditExport.logExport({
+      tipo,
+      acao: 'EXPORTAR',
+      status: 'SUCESSO',
+      userId: actor.id,
+      entity: documento,
       entityId,
       objeto: docId,
-      resultado: 'SUCESSO',
-      reason: `Emissão de documento clínico (${entity}) em PDF`,
+      metadata: { documento, docId, entityId },
     });
   }
 
@@ -158,7 +160,7 @@ export class PdfService {
       })),
     };
 
-    await this.auditar(actor, 'prontuario', paciente.id.toString(), ctx.meta.docId);
+    await this.auditar(actor, 'PDF_PRONTUARIO', 'prontuario', paciente.id.toString(), ctx.meta.docId);
     return {
       filename: `prontuario-${paciente.id}-${ctx.meta.docId.slice(0, 8)}.pdf`,
       render: (doc) => renderProntuario(doc, data),
@@ -201,7 +203,7 @@ export class PdfService {
       },
     };
 
-    await this.auditar(actor, 'prescricao', presc.id.toString(), ctx.meta.docId);
+    await this.auditar(actor, 'PDF_PRESCRICAO', 'prescricao', presc.id.toString(), ctx.meta.docId);
     return {
       filename: `prescricao-${presc.id}-${ctx.meta.docId.slice(0, 8)}.pdf`,
       render: (doc) => renderPrescricao(doc, data),
@@ -251,7 +253,7 @@ export class PdfService {
       })),
     };
 
-    await this.auditar(actor, 'alta', internacao.id.toString(), ctx.meta.docId);
+    await this.auditar(actor, 'PDF_ALTA', 'alta', internacao.id.toString(), ctx.meta.docId);
     return {
       filename: `alta-${internacao.id}-${ctx.meta.docId.slice(0, 8)}.pdf`,
       render: (doc) => renderAlta(doc, data),

@@ -3,12 +3,15 @@ import type { Response } from 'express';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditExportService } from '../audit/audit.service';
 import { currentHospitalId } from '../../shared/tenant/tenant-context';
+import { logJson } from '../../shared/observability/structured-logger';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
 
 export type ExportFormat = 'csv' | 'json';
 
 const BATCH = 1000;
 const MAX_ROWS = Number(process.env.EXPORT_MAX_ROWS ?? 100_000);
+// Corte de duração (defesa contra streams presos/lentos). 0 = desligado.
+const TIMEOUT_MS = Number(process.env.EXPORT_TIMEOUT_MS ?? 5 * 60_000);
 
 interface PacienteRow {
   id: bigint;
@@ -54,8 +57,25 @@ export class ExportService {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
     let aborted = false;
+    let abortReason = 'conexão encerrada pelo cliente';
     res.on('close', () => {
       aborted = true;
+    });
+
+    // Timeout de duração: evita stream preso segurando conexão/recursos.
+    const timer =
+      TIMEOUT_MS > 0
+        ? setTimeout(() => {
+            aborted = true;
+            abortReason = 'timeout de exportação atingido';
+          }, TIMEOUT_MS)
+        : null;
+
+    const startedAt = Date.now();
+    logJson('info', 'ExportService', 'export iniciado', {
+      hospitalId,
+      userId: String(user.id),
+      format,
     });
 
     let total = 0;
@@ -68,7 +88,7 @@ export class ExportService {
         : '[');
 
       for (;;) {
-        if (aborted) throw new Error('conexão encerrada pelo cliente');
+        if (aborted) throw new Error(abortReason);
         const rows = (await this.prisma.paciente.findMany({
           where: {
             hospitalId, // filtro EXPLÍCITO (o tenant-guard também aplica — defense in depth)
@@ -107,11 +127,28 @@ export class ExportService {
       if (format === 'json') await this.write(res, ']');
       if (!res.writableEnded) res.end();
 
+      logJson('info', 'ExportService', 'export concluído', {
+        hospitalId,
+        userId: String(user.id),
+        format,
+        total,
+        durationMs: Date.now() - startedAt,
+      });
       await this.auditar(user, hospitalId, format, total, 'SUCESSO');
     } catch (e) {
       const erro = e instanceof Error ? e.message : String(e);
+      logJson('error', 'ExportService', 'export falhou', {
+        hospitalId,
+        userId: String(user.id),
+        format,
+        total,
+        durationMs: Date.now() - startedAt,
+        erro,
+      });
       await this.auditar(user, hospitalId, format, total, 'FALHA', erro);
       if (!res.writableEnded) res.destroy(); // interrompe o stream em falha
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 

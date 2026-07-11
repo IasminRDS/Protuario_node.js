@@ -7,7 +7,11 @@ export type ExportTipo =
   | 'CSV_IMPORT'
   | 'BACKUP'
   | 'PACIENTES_EXPORT'
-  | 'RELATORIO';
+  | 'RELATORIO'
+  // Downloads sensíveis de PHI (documentos clínicos em PDF) — mesma trilha unificada.
+  | 'PDF_PRONTUARIO'
+  | 'PDF_PRESCRICAO'
+  | 'PDF_ALTA';
 export type ExportAcao = 'IMPORTAR' | 'GERAR_BACKUP' | 'EXPORTAR';
 export type ExportStatus = 'SUCESSO' | 'FALHA';
 
@@ -18,6 +22,14 @@ export interface LogExportParams {
   userId: string | bigint | null;
   /** Tenant do evento. Se omitido, usa o hospital da requisição (currentHospitalId). */
   hospitalId?: string | null;
+  /**
+   * Recurso auditado (colunas INDEXADAS entity/entityId — base da "trilha de
+   * acesso do paciente" LGPD). Opcional: default `entity='export'`. Usado por
+   * downloads que apontam a um agregado específico (ex.: PDF de um paciente).
+   */
+  entity?: string;
+  entityId?: string;
+  objeto?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -39,7 +51,9 @@ export class AuditExportService {
       modulo: params.tipo,
       operacao: params.acao,
       resultado: params.status,
-      entity: 'export',
+      entity: params.entity ?? 'export',
+      entityId: params.entityId,
+      objeto: params.objeto,
       reason: `${params.tipo}/${params.acao} ${params.status}`,
       metadata: (params.metadata ?? {}) as unknown as Prisma.InputJsonValue,
     });

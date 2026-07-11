@@ -1,5 +1,15 @@
-import { Body, Controller, Get, Headers, Ip, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Ip,
+  Param,
+  Post,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { IdempotencyInterceptor } from '../../shared/interceptors/idempotency.interceptor';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { RequirePermissions } from '../../shared/decorators/require-permissions.decorator';
 import { Permission } from '../../shared/rbac/permissions';
@@ -15,6 +25,9 @@ export class TriageController {
 
   @Post()
   @RequirePermissions(Permission.TRIAGE_WRITE)
+  // Idempotência: a fila offline (UBS) reenvia com a MESMA Idempotency-Key —
+  // retry de sincronização nunca duplica a triagem.
+  @UseInterceptors(IdempotencyInterceptor)
   @ApiOperation({ summary: 'Registrar triagem e avançar o fluxo do paciente.' })
   async create(
     @Body() dto: CreateTriageDto,

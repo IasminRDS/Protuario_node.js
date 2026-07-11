@@ -50,6 +50,11 @@ import { BackupModule } from './modules/backup/backup.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { ExportModule } from './modules/export/export.module';
 
+// FASE 6 — vigilância epidemiológica, regulação de vagas e painel
+import { VigilanciaModule } from './modules/vigilancia/vigilancia.module';
+import { RegulacaoModule } from './modules/regulacao/regulacao.module';
+import { EpidemiologiaModule } from './modules/epidemiologia/epidemiologia.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -105,6 +110,11 @@ import { ExportModule } from './modules/export/export.module';
     CsvImportModule,
     BackupModule,
     ExportModule,
+
+    // FASE 6 — vigilância, regulação e epidemiologia
+    VigilanciaModule, // notificação compulsória (SINAN)
+    RegulacaoModule, // regulação de vagas (SISREG-like)
+    EpidemiologiaModule, // painel epidemiológico (agregados)
   ],
 
   providers: [

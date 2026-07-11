@@ -27,6 +27,12 @@ export const PERMISSIONS = [
   'med-admin:write',
   // Fase 5 — gestão/relatórios
   'reports:read',
+  // Fase 6 — vigilância epidemiológica (SINAN) e regulação de vagas
+  'surveillance:read',
+  'surveillance:write',
+  'regulation:read',
+  'regulation:write',
+  'regulation:decide',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -53,6 +59,10 @@ const ROLE_PERMISSIONS: Record<Perfil, Permission[]> = {
     'exam:write',
     'surgery:write',
     'reports:read',
+    'surveillance:read',
+    'surveillance:write',
+    'regulation:read',
+    'regulation:write',
   ],
   Enfermeiro: [
     'patient:read',
@@ -63,10 +73,22 @@ const ROLE_PERMISSIONS: Record<Perfil, Permission[]> = {
     'exam:write',
     'internment:write',
     'med-admin:write',
+    'surveillance:read',
+    'surveillance:write',
+    'regulation:read',
   ],
   Farmaceutico: ['patient:read', 'prescription:read'],
   Recepcao: ['patient:read', 'patient:create', 'patient:update'],
-  Gestor: ['patient:read', 'clinical:read', 'audit:read', 'reports:read'],
+  Gestor: [
+    'patient:read',
+    'clinical:read',
+    'audit:read',
+    'reports:read',
+    'surveillance:read',
+    'surveillance:write',
+    'regulation:read',
+    'regulation:decide',
+  ],
 };
 
 export function permissionsFor(perfil: Perfil): Set<Permission> {

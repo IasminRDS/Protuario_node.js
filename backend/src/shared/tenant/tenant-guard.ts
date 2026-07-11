@@ -13,6 +13,11 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set<string>([
   'Triagem',
   'Prescricao',
   'Prontuario',
+  // FASE 6 — também carregam PHI e referenciam Paciente. Entrar aqui dá o
+  // escopo app-layer E o pin de leitura RLS (sem o pin, o include de paciente
+  // rodaria sem o GUC e a policy o esconderia → "Inconsistent query result").
+  'NotificacaoCompulsoria',
+  'Encaminhamento',
 ]);
 
 /** Bloqueio explícito: operação em modelo tenant sem hospitalId no contexto. */

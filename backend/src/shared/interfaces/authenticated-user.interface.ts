@@ -7,6 +7,8 @@ export interface AuthenticatedUser {
   perfil: string; // Perfil.nome
   hospitalId: string | null; // tenant (multi-hospital)
   superAdmin: boolean; // acesso cross-tenant (SUPER_ADMIN)
+  mfaEnabled?: boolean; // usuário tem TOTP ativo (fonte: banco)
+  mfaVerified?: boolean; // sessão atual passou pelo desafio TOTP (claim do token)
 }
 
 export interface JwtPayload {
@@ -15,4 +17,11 @@ export interface JwtPayload {
   perfil: string;
   hospitalId: string | null;
   superAdmin?: boolean; // informativo; o bypass real é revalidado pelo perfil
+  mfa?: boolean; // sessão emitida após desafio TOTP
+}
+
+/** Token intermediário do desafio MFA (curta duração, escopo restrito). */
+export interface MfaChallengePayload {
+  sub: string;
+  scope: 'mfa';
 }

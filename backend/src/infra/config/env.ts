@@ -19,10 +19,23 @@ export const envSchema = z.object({
 
   LOGIN_MAX_ATTEMPTS: z.coerce.number().default(5),
 
+  // MFA step-up nas rotas de export/backup (LGPD). false só em teste/CI.
+  MFA_ENFORCE_EXPORT: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+
   // F0.6-B ConsistencyMonitor: janela recente (I-G8 heurístico) e intervalo do
   // job periódico (0 = desligado; endpoint on-demand sempre disponível).
   CONSISTENCY_WINDOW_MINUTES: z.coerce.number().default(5),
   CONSISTENCY_MONITOR_INTERVAL_MS: z.coerce.number().default(0),
+
+  // RLS Fase 1: ativa o enforcement de tenant no banco (SET LOCAL app.hospital_id).
+  // Só ative junto com DATABASE_URL apontando para a role NÃO-dona prontuario_app.
+  RLS_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 
   CORS_ORIGINS: z.string().default('*'),
 

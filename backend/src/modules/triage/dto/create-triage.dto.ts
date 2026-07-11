@@ -43,8 +43,24 @@ export class CreateTriageDto {
   @IsNumber()
   height?: number;
 
-  @ApiProperty({ enum: ['LOW', 'MEDIUM', 'HIGH', 'EMERGENCY'] })
-  @IsIn(['LOW', 'MEDIUM', 'HIGH', 'EMERGENCY'])
+  @ApiProperty({
+    enum: ['VERMELHO', 'LARANJA', 'AMARELO', 'VERDE', 'AZUL'],
+    description:
+      'Classificação de risco Manchester (cores oficiais). Valores legados LOW/MEDIUM/HIGH/EMERGENCY seguem aceitos.',
+  })
+  @IsIn([
+    // Protocolo de Manchester (oficial)
+    'VERMELHO',
+    'LARANJA',
+    'AMARELO',
+    'VERDE',
+    'AZUL',
+    // Legado (compatibilidade com clientes antigos)
+    'LOW',
+    'MEDIUM',
+    'HIGH',
+    'EMERGENCY',
+  ])
   riskLevel!: string;
 
   @ApiPropertyOptional()

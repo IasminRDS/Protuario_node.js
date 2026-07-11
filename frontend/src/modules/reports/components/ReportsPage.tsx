@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import {
   Button,
   ErrorState,
@@ -9,12 +9,14 @@ import {
   Input,
   PageHeader,
 } from '@/components/ui/primitives';
+import { auditRelatorioExport } from '@/modules/export/export.service';
 import {
   reportsErrorMessage,
   useAtendimentosPorDia,
   useExames,
   useRefreshReports,
 } from '../hooks/useReports';
+import { downloadCsv, toCsv } from '../lib/csv';
 import { CardsResumo } from './CardsResumo';
 import { AtendimentosChart } from './AtendimentosChart';
 import { ExamesChart } from './ExamesChart';
@@ -39,16 +41,68 @@ export function ReportsPage() {
       ? exames.error
       : null;
 
+  // Export CSV client-side + registro na trilha LGPD (RELATORIO/EXPORTAR).
+  function exportAtendimentos() {
+    const rows = atendimentosFiltrados;
+    if (rows.length === 0) return;
+    downloadCsv(
+      toCsv(rows, [
+        { key: 'dia', label: 'Dia' },
+        { key: 'totalAtendimentos', label: 'Total de atendimentos' },
+      ]),
+      'atendimentos-por-dia',
+    );
+    void auditRelatorioExport({
+      relatorio: 'atendimentos-por-dia',
+      totalRegistros: rows.length,
+    });
+  }
+
+  function exportExames() {
+    const rows = exames.data ?? [];
+    if (rows.length === 0) return;
+    downloadCsv(
+      toCsv(rows, [
+        { key: 'codigo', label: 'Código' },
+        { key: 'tipoExame', label: 'Tipo de exame' },
+        { key: 'total', label: 'Total' },
+      ]),
+      'exames-realizados',
+    );
+    void auditRelatorioExport({
+      relatorio: 'exames-realizados',
+      totalRegistros: rows.length,
+    });
+  }
+
   return (
     <div>
       <PageHeader
         title="Relatórios"
         subtitle="Indicadores operacionais do hospital"
         actions={
-          <Button variant="secondary" onClick={() => void refresh()}>
-            <RefreshCw className="h-4 w-4" />
-            Atualizar dados
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={exportAtendimentos}
+              disabled={atendimentosFiltrados.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              CSV atendimentos
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={exportExames}
+              disabled={(exames.data ?? []).length === 0}
+            >
+              <Download className="h-4 w-4" />
+              CSV exames
+            </Button>
+            <Button variant="secondary" onClick={() => void refresh()}>
+              <RefreshCw className="h-4 w-4" />
+              Atualizar dados
+            </Button>
+          </div>
         }
       />
 

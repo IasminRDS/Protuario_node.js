@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordService } from '../../infra/auth/password.service';
+import { TotpService } from '../../infra/auth/totp.service';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AuthService } from './auth.service';
@@ -49,6 +50,7 @@ describe('AuthService.login', () => {
       jwt,
       config,
       passwords,
+      new TotpService(),
       auditoria,
     );
   });

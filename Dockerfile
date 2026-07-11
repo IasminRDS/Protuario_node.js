@@ -31,7 +31,18 @@ RUN npm run -w backend prisma:generate \
 FROM node:20-slim AS runner
 WORKDIR /repo
 ENV NODE_ENV=production
-RUN apt-get update -y && apt-get install -y openssl
+# openssl: exigido pelo Prisma. postgresql-client-16: fornece `pg_dump` para o
+# endpoint de BACKUP (o backup falha com 503 sem ele). A versão do client DEVE
+# ser >= a do servidor (Postgres 16), por isso usamos o repositório oficial PGDG
+# em vez do postgresql-client (v15) do Debian bookworm.
+RUN apt-get update -y \
+ && apt-get install -y --no-install-recommends openssl ca-certificates gnupg curl lsb-release \
+ && install -d /usr/share/postgresql-common/pgdg \
+ && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+ && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+ && apt-get update -y \
+ && apt-get install -y --no-install-recommends postgresql-client-16 \
+ && rm -rf /var/lib/apt/lists/*
 
 # Carrega as deps já resolvidas + o Prisma Client gerado do builder. Em npm
 # workspaces o client pode ficar em node_modules da raiz OU do workspace, então
