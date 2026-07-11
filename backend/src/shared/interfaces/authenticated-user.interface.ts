@@ -9,6 +9,7 @@ export interface AuthenticatedUser {
   superAdmin: boolean; // acesso cross-tenant (SUPER_ADMIN)
   mfaEnabled?: boolean; // usuário tem TOTP ativo (fonte: banco)
   mfaVerified?: boolean; // sessão atual passou pelo desafio TOTP (claim do token)
+  govbrSelo?: string | null; // selo da última autenticação gov.br (bronze|prata|ouro)
 }
 
 export interface JwtPayload {
@@ -18,6 +19,7 @@ export interface JwtPayload {
   hospitalId: string | null;
   superAdmin?: boolean; // informativo; o bypass real é revalidado pelo perfil
   mfa?: boolean; // sessão emitida após desafio TOTP
+  selo?: string; // selo gov.br quando a sessão nasceu de login federado
 }
 
 /** Token intermediário do desafio MFA (curta duração, escopo restrito). */

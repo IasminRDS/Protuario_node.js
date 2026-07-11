@@ -40,6 +40,7 @@ export interface AuthUser {
   perfil: Perfil;
   hospitalId: string | null; // tenant ativo (null = SuperAdmin cross-tenant)
   superAdmin: boolean;
+  govbrSelo?: string | null; // selo gov.br quando a sessão veio de login federado
   exp?: number;
 }
 

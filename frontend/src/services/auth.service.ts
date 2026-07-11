@@ -21,7 +21,28 @@ export function isMfaChallenge(r: AuthTokens | MfaChallenge): r is MfaChallenge 
   return (r as MfaChallenge).mfaRequired === true;
 }
 
+/** URL para iniciar o login gov.br (redirect de página inteira, não XHR). */
+export function govbrLoginUrl(): string {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+  return `${base}/auth/govbr/login`;
+}
+
 export const authService = {
+  /** Troca o código de uso único (retorno do callback gov.br) pelos tokens. */
+  async govbrSession(code: string): Promise<AuthTokens> {
+    const { data } = await api.post<ApiEnvelope<AuthTokens>>('/auth/govbr/session', {
+      code,
+    });
+    return data.data;
+  },
+
+  async govbrStatus(): Promise<{ enabled: boolean; simulador: boolean }> {
+    const { data } = await api.get<ApiEnvelope<{ enabled: boolean; simulador: boolean }>>(
+      '/auth/govbr/status',
+    );
+    return data.data;
+  },
+
   async login(login: string, senha: string): Promise<AuthTokens | MfaChallenge> {
     const { data } = await api.post<ApiEnvelope<AuthTokens | MfaChallenge>>(
       '/auth/login',

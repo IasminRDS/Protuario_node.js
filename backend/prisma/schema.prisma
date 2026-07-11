@@ -47,6 +47,11 @@ model Usuario {
   mfaSecret  String? @map("mfa_secret") @db.VarChar(64)
   mfaEnabled Boolean @default(false) @map("mfa_enabled")
 
+  // Identidade gov.br (OIDC): CPF do profissional (vínculo determinístico com o
+  // `sub` do gov.br) e selo de confiabilidade da última autenticação federada.
+  cpf        String? @unique @db.VarChar(14)
+  govbrSelo  String? @map("govbr_selo") @db.VarChar(10) // bronze|prata|ouro
+
   // auditoria de campos
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -426,6 +431,13 @@ model Auditoria {
   // agregado; null para eventos sem agregado (ex.: AUTH).
   aggregateSeq BigInt?  @map("aggregate_seq")
   dataEvento   DateTime @default(now()) @map("data_evento")
+
+  // ADR-06: hash-chain criptográfico (não-repúdio). `hash` = SHA-256 do
+  // conteúdo canônico do evento + `prevHash` (hash do evento anterior por id).
+  // Adulterar/remover qualquer registro quebra a cadeia — verificável em
+  // GET /audit/verify. Preenchidos pós-insert (precisam do id/seq definitivos).
+  prevHash     String?  @map("prev_hash") @db.Char(64)
+  hash         String?  @db.Char(64)
   // Sem updated_at / deleted_at: registros nunca alterados ou removidos.
 
   usuario Usuario? @relation(fields: [usuarioId], references: [id])
@@ -632,6 +644,7 @@ model Medico {
   userId        BigInt   @unique @map("user_id")
   crm           String   @unique @db.VarChar(20)
   especialidade String?  @db.VarChar(100)
+  cbo           String?  @db.VarChar(6) // Classificação Brasileira de Ocupações (ex.: 225125)
   hospitalId    String?  @map("hospital_id") @db.Uuid
   ativo         Boolean  @default(true)
   createdAt     DateTime @default(now()) @map("created_at")
@@ -1151,4 +1164,47 @@ model NotificacaoCompulsoria {
   @@index([hospitalId])
   @@index([createdAt])
   @@map("notificacao_compulsoria")
+}
+
+// ###########################################################################
+// FASE 8 — ASSINATURA DIGITAL DE DOCUMENTOS CLÍNICOS (item 2).
+// Cada PDF clínico (prescrição, sumário de alta, prontuário) é assinado
+// criptograficamente: guardamos o hash SHA-256 do conteúdo e a assinatura
+// (RSA/ECDSA). A verificação pública (QR → /documentos/verificar/:id) confirma
+// integridade e autoria sem expor PHI.
+// ###########################################################################
+model DocumentoAssinado {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo         String   @db.VarChar(30) // PRONTUARIO|PRESCRICAO|ALTA
+  pacienteId   BigInt?  @map("paciente_id")
+  hospitalId   String?  @map("hospital_id") @db.Uuid
+  signatarioId BigInt?  @map("signatario_id") // Usuario que assinou
+  signatarioNome String @map("signatario_nome") @db.VarChar(200)
+  signatarioDoc  String? @map("signatario_doc") @db.VarChar(60) // CRM/CBO/CPF exibível
+  hashDocumento String  @map("hash_documento") @db.Char(64) // SHA-256 do PDF
+  assinatura    String  @db.Text // base64 (RSA/ECDSA sobre o hash)
+  algoritmo     String  @default("RSA-SHA256") @db.VarChar(20)
+  emitidoEm     DateTime @default(now()) @map("emitido_em")
+
+  @@index([pacienteId])
+  @@index([hospitalId])
+  @@map("documento_assinado")
+}
+
+// ###########################################################################
+// FASE 8 — CONSENTIMENTO LGPD versionado (item 7). Registro do aceite do
+// titular a uma versão específica do termo (base legal art. 7º/11 LGPD).
+// ###########################################################################
+model ConsentimentoLgpd {
+  id          BigInt   @id @default(autoincrement())
+  usuarioId   BigInt?  @map("usuario_id") // quem registrou o aceite
+  pacienteId  BigInt?  @map("paciente_id") // titular (quando aplicável)
+  termoVersao String   @map("termo_versao") @db.VarChar(20)
+  finalidade  String   @db.VarChar(120) // assistencial|pesquisa|compartilhamento_rnds
+  aceito      Boolean  @default(true)
+  ip          String?  @db.VarChar(50)
+  registradoEm DateTime @default(now()) @map("registrado_em")
+
+  @@index([pacienteId])
+  @@map("consentimento_lgpd")
 }

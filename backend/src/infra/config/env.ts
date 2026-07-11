@@ -30,6 +30,23 @@ export const envSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
 
+  // Login gov.br (OIDC). SIMULATOR=true usa o IdP embutido (dev/homolog); em
+  // produção, aponte issuer/endpoints/credenciais para sso.acesso.gov.br.
+  GOVBR_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  GOVBR_SIMULATOR: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  GOVBR_CLIENT_ID: z.string().default('snpe-dev'),
+  GOVBR_AUTHORIZE_URL: z.string().default(''), // vazio = usa o simulador embutido
+  GOVBR_TOKEN_URL: z.string().default(''),
+  GOVBR_USERINFO_URL: z.string().default(''),
+  // Para onde o backend redireciona após concluir o login federado.
+  GOVBR_FRONTEND_URL: z.string().default('http://localhost:3001/login'),
+
   // F0.6-B ConsistencyMonitor: janela recente (I-G8 heurístico) e intervalo do
   // job periódico (0 = desligado; endpoint on-demand sempre disponível).
   CONSISTENCY_WINDOW_MINUTES: z.coerce.number().default(5),

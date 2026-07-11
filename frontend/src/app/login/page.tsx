@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Activity, ShieldCheck } from 'lucide-react';
-import { authService, isMfaChallenge } from '@/services/auth.service';
+import { authService, govbrLoginUrl, isMfaChallenge } from '@/services/auth.service';
 import { apiErrorMessage } from '@/services/api';
 import { useAuthStore } from '@/store/auth.store';
 import { Button, Field, Input } from '@/components/ui/primitives';
@@ -46,6 +46,27 @@ export default function LoginPage() {
       router.replace('/dashboard');
     }
   }, [hydrate, router]);
+
+  // Retorno do gov.br: o callback redireciona para cá com ?govbr=<código único>
+  // (ou ?govbr_erro=1). Trocamos o código pelos tokens e entramos.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('govbr_erro')) {
+      setServerError('Não foi possível concluir o login com gov.br.');
+      window.history.replaceState({}, '', '/login');
+      return;
+    }
+    const code = params.get('govbr');
+    if (!code) return;
+    window.history.replaceState({}, '', '/login'); // limpa o código da URL
+    authService
+      .govbrSession(code)
+      .then((tokens) => {
+        doLogin(tokens);
+        router.replace('/dashboard');
+      })
+      .catch((err) => setServerError(apiErrorMessage(err, 'Falha no login gov.br.')));
+  }, [doLogin, router]);
 
   async function onSubmit(data: FormData) {
     setServerError(null);
@@ -160,6 +181,20 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" loading={isSubmitting}>
               Entrar
             </Button>
+
+            <div className="flex items-center gap-3 py-1">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span className="text-[11px] uppercase tracking-wide text-slate-400">ou</span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            {/* Login federado gov.br. Redirect de página inteira (fluxo OIDC). */}
+            <a
+              href={govbrLoginUrl()}
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-govbr-blue px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-govbr-blue-dark"
+            >
+              Entrar com <span className="font-bold">gov<span className="text-govbr-yellow">.br</span></span>
+            </a>
           </form>
         )}
         </div>

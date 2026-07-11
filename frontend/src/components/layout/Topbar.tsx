@@ -115,6 +115,22 @@ export function Topbar() {
     <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-6">
       <TenantContextBar />
       <div className="flex items-center gap-4">
+        {user?.govbrSelo && (
+          <span
+            className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+            style={{
+              background:
+                user.govbrSelo === 'ouro'
+                  ? '#d4a017'
+                  : user.govbrSelo === 'prata'
+                    ? '#8a96a3'
+                    : '#a97142',
+            }}
+            title={`Autenticado com gov.br — selo ${user.govbrSelo}`}
+          >
+            gov.br {user.govbrSelo}
+          </span>
+        )}
         <OfflineIndicator />
         <div className="flex items-center gap-2 text-sm">
           <UserCircle2 className="h-5 w-5 text-slate-400" />

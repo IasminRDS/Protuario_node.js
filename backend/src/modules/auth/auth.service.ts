@@ -335,6 +335,55 @@ export class AuthService {
     return tokens;
   }
 
+  /**
+   * Emite tokens para um usuário JÁ autenticado por um provedor federado
+   * (gov.br OIDC). O login local (senha/MFA) NÃO se aplica — a garantia de
+   * identidade vem do IdP. Persiste o selo gov.br e o refresh hash, e audita.
+   */
+  async loginFederado(
+    usuarioId: string,
+    selo: string,
+    ip?: string,
+  ): Promise<AuthTokens> {
+    const usuario = await this.prisma.usuario.findFirst({
+      where: { id: BigInt(usuarioId), ativo: true, deletedAt: null },
+      include: { perfil: true },
+    });
+    if (!usuario) {
+      throw new UnauthorizedException('Usuário inválido ou inativo.');
+    }
+
+    const tokens = await this.issueTokens({
+      sub: usuario.id.toString(),
+      login: usuario.login,
+      perfil: usuario.perfil.nome,
+      hospitalId: usuario.hospitalId ?? null,
+      superAdmin: isSuperAdmin(usuario.perfil.nome),
+      mfa: selo === 'ouro', // selo ouro (certificado/biometria) equivale a 2FA forte
+      selo,
+    });
+
+    await this.prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        loginAttempts: 0,
+        govbrSelo: selo,
+        refreshTokenHash: await this.passwords.hash(tokens.refreshToken),
+      },
+    });
+
+    await this.auditoria.registrar({
+      usuarioId: usuario.id,
+      modulo: 'AUTH',
+      operacao: 'LOGIN',
+      objeto: usuario.login,
+      resultado: `SUCESSO_GOVBR_${selo.toUpperCase()}`,
+      ip,
+    });
+
+    return tokens;
+  }
+
   async logout(usuarioId: string, ip?: string): Promise<void> {
     await this.prisma.usuario.update({
       where: { id: BigInt(usuarioId) },

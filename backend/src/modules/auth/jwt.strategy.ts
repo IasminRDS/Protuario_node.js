@@ -56,6 +56,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       superAdmin,
       mfaEnabled: usuario.mfaEnabled,
       mfaVerified: payload.mfa === true,
+      govbrSelo: usuario.govbrSelo,
     };
   }
 }

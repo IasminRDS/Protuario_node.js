@@ -55,6 +55,7 @@ import { VigilanciaModule } from './modules/vigilancia/vigilancia.module';
 import { RegulacaoModule } from './modules/regulacao/regulacao.module';
 import { EpidemiologiaModule } from './modules/epidemiologia/epidemiologia.module';
 import { TerminologiaModule } from './modules/terminologia/terminologia.module';
+import { GovbrModule } from './modules/govbr/govbr.module';
 
 @Module({
   imports: [
@@ -119,6 +120,9 @@ import { TerminologiaModule } from './modules/terminologia/terminologia.module';
 
     // FASE 7 — terminologias oficiais (CID-10, medicamentos)
     TerminologiaModule,
+
+    // FASE 8 — governo: login gov.br (OIDC)
+    GovbrModule,
   ],
 
   providers: [
