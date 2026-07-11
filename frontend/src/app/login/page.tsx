@@ -10,6 +10,7 @@ import { authService, isMfaChallenge } from '@/services/auth.service';
 import { apiErrorMessage } from '@/services/api';
 import { useAuthStore } from '@/store/auth.store';
 import { Button, Field, Input } from '@/components/ui/primitives';
+import { GovBar, GovFooter } from '@/components/layout/GovBar';
 
 const schema = z.object({
   login: z.string().min(1, 'Informe o login'),
@@ -78,13 +79,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="mb-6 flex flex-col items-center gap-2">
-          <Activity className="h-9 w-9 text-clinic-primary" />
-          <h1 className="text-lg font-bold text-slate-800">S-PE</h1>
-          <p className="text-xs text-slate-400">Prontuário Eletrônico Hospitalar</p>
-        </div>
+    <div className="flex min-h-screen flex-col bg-clinic-bg">
+      <GovBar />
+      <div className="flex flex-1 items-center justify-center p-4">
+        <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="mb-6 flex flex-col items-center gap-2">
+            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-clinic-primary">
+              <Activity className="h-6 w-6 text-white" aria-hidden />
+            </span>
+            <h1 className="text-lg font-bold text-slate-800">SNPE</h1>
+            <p className="text-xs text-slate-400">
+              Sistema Nacional de Prontuário Eletrônico
+            </p>
+          </div>
 
         {mfaToken ? (
           <form onSubmit={onVerifyMfa} className="space-y-4">
@@ -155,7 +162,9 @@ export default function LoginPage() {
             </Button>
           </form>
         )}
+        </div>
       </div>
+      <GovFooter />
     </div>
   );
 }

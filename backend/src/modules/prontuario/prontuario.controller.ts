@@ -16,6 +16,34 @@ export class ProntuarioController {
     private readonly auditoria: AuditoriaService,
   ) {}
 
+  @Get(':pacienteId/sumario')
+  @RequirePermissions(Permission.CLINICAL_READ)
+  @ApiOperation({
+    summary:
+      'Sumário do Paciente (IPS-like): alertas, problemas ativos, medicamentos, vacinas e timeline.',
+  })
+  async sumario(
+    @Param('pacienteId') pacienteId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Ip() ip: string,
+    @Headers('user-agent') device?: string,
+  ) {
+    const data = await this.service.sumario(pacienteId);
+    // LGPD: acesso ao sumário = acesso ao prontuário (auditado com finalidade).
+    await this.auditoria.registrar({
+      usuarioId: user.id,
+      modulo: 'PRONTUARIO',
+      operacao: 'PATIENT_VIEWED',
+      entity: 'paciente',
+      entityId: pacienteId,
+      reason: 'assistencial',
+      resultado: 'SUCESSO',
+      ip,
+      device,
+    });
+    return { data, message: 'Sumário do paciente.' };
+  }
+
   @Get(':pacienteId')
   @RequirePermissions(Permission.CLINICAL_READ)
   @ApiOperation({ summary: 'Linha do tempo clínica consolidada do paciente.' })

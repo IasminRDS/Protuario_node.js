@@ -34,29 +34,59 @@ export interface NavItem {
   roles?: Perfil[];
 }
 
-// Navegação orientada ao fluxo clínico, controlada por permissão granular.
-export const NAV: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/pacientes', label: 'Pacientes', icon: Users, any: ['patient:read'] },
-  { href: '/pronto-socorro', label: 'Pronto-Socorro', icon: Ambulance, any: ['emergency:write'] },
-  { href: '/triagem', label: 'Triagem', icon: ClipboardList, any: ['triage:write'] },
-  { href: '/internacao', label: 'Internação', icon: BedDouble, any: ['internment:write'] },
-  { href: '/atendimentos', label: 'Atendimentos', icon: Stethoscope, any: ['clinical:write'] },
-  { href: '/prontuario', label: 'Prontuário', icon: FileText, any: ['clinical:read'] },
-  { href: '/prescricao', label: 'Prescrição', icon: Pill, any: ['prescription:create'] },
-  { href: '/vigilancia', label: 'Vigilância', icon: Siren, any: ['surveillance:read'] },
-  { href: '/regulacao', label: 'Regulação', icon: ArrowLeftRight, any: ['regulation:read'] },
-  { href: '/epidemiologia', label: 'Epidemiologia', icon: Map, any: ['reports:read'] },
-  { href: '/relatorios', label: 'Relatórios', icon: BarChart3, any: ['reports:read'] },
-  { href: '/importacao', label: 'Importar CSV', icon: Upload, any: ['patient:create'] },
+/** Grupo de navegação (DSGov): título de seção + itens, filtrados por RBAC. */
+export interface NavGroup {
+  titulo: string | null; // null = sem cabeçalho (topo)
+  items: NavItem[];
+}
+
+// Navegação orientada ao fluxo clínico, agrupada por domínio (padrão de
+// sistemas gov: o operador acha a função pelo contexto, não por lista plana).
+export const NAV_GROUPS: NavGroup[] = [
   {
-    href: '/exportacao',
-    label: 'Exportação',
-    icon: DownloadCloud,
-    // RBAC por perfil: export (Admin/Recepção) ou backup (SuperAdmin).
-    roles: ['Administrador', 'Recepcao', 'SuperAdmin'],
+    titulo: null,
+    items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
   },
-  { href: '/auditoria', label: 'Auditoria', icon: ShieldCheck, any: ['audit:read'] },
-  // Conta (MFA/segurança): visível a todos os autenticados.
-  { href: '/conta', label: 'Minha conta', icon: UserCog },
+  {
+    titulo: 'Atendimento',
+    items: [
+      { href: '/pacientes', label: 'Pacientes', icon: Users, any: ['patient:read'] },
+      { href: '/pronto-socorro', label: 'Pronto-Socorro', icon: Ambulance, any: ['emergency:write'] },
+      { href: '/triagem', label: 'Triagem', icon: ClipboardList, any: ['triage:write'] },
+      { href: '/atendimentos', label: 'Atendimentos', icon: Stethoscope, any: ['clinical:write'] },
+      { href: '/prontuario', label: 'Prontuário', icon: FileText, any: ['clinical:read'] },
+      { href: '/prescricao', label: 'Prescrição', icon: Pill, any: ['prescription:create'] },
+      { href: '/internacao', label: 'Internação', icon: BedDouble, any: ['internment:write'] },
+    ],
+  },
+  {
+    titulo: 'Vigilância e Regulação',
+    items: [
+      { href: '/vigilancia', label: 'Vigilância (SINAN)', icon: Siren, any: ['surveillance:read'] },
+      { href: '/regulacao', label: 'Regulação de vagas', icon: ArrowLeftRight, any: ['regulation:read'] },
+      { href: '/epidemiologia', label: 'Epidemiologia', icon: Map, any: ['reports:read'] },
+    ],
+  },
+  {
+    titulo: 'Gestão',
+    items: [
+      { href: '/relatorios', label: 'Relatórios', icon: BarChart3, any: ['reports:read'] },
+      { href: '/importacao', label: 'Importar CSV', icon: Upload, any: ['patient:create'] },
+      {
+        href: '/exportacao',
+        label: 'Exportação',
+        icon: DownloadCloud,
+        // RBAC por perfil: export (Admin/Recepção) ou backup (SuperAdmin).
+        roles: ['Administrador', 'Recepcao', 'SuperAdmin'],
+      },
+      { href: '/auditoria', label: 'Auditoria', icon: ShieldCheck, any: ['audit:read'] },
+    ],
+  },
+  {
+    titulo: 'Conta',
+    items: [{ href: '/conta', label: 'Minha conta', icon: UserCog }],
+  },
 ];
+
+/** Lista plana (compatibilidade com consumidores existentes). */
+export const NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);

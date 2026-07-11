@@ -22,6 +22,7 @@ import {
   TableSkeleton,
 } from '@/components/ui/primitives';
 import { PatientPicker } from '@/components/clinical/PatientPicker';
+import { CidPicker } from '@/components/clinical/TerminologyPicker';
 import { usePermissions } from '@/modules/shared/rbac/usePermissions';
 import type { Paciente } from '@/types';
 
@@ -63,7 +64,7 @@ export default function RegulacaoPage() {
   const [paciente, setPaciente] = useState<Paciente | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } =
     useForm<FormData>({
       resolver: zodResolver(schema),
       defaultValues: { prioridade: 'eletivo' },
@@ -191,7 +192,10 @@ export default function RegulacaoPage() {
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="CID-10 (opcional)">
-                  <Input placeholder="I20.0" {...register('cid')} />
+                  <CidPicker
+                    value={watch('cid') ?? ''}
+                    onChange={(v) => setValue('cid', v)}
+                  />
                 </Field>
                 <Field label="Hipótese diagnóstica">
                   <Input {...register('hipoteseDiagnostica')} />

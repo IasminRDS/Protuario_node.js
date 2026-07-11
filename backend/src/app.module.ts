@@ -54,6 +54,7 @@ import { ExportModule } from './modules/export/export.module';
 import { VigilanciaModule } from './modules/vigilancia/vigilancia.module';
 import { RegulacaoModule } from './modules/regulacao/regulacao.module';
 import { EpidemiologiaModule } from './modules/epidemiologia/epidemiologia.module';
+import { TerminologiaModule } from './modules/terminologia/terminologia.module';
 
 @Module({
   imports: [
@@ -115,6 +116,9 @@ import { EpidemiologiaModule } from './modules/epidemiologia/epidemiologia.modul
     VigilanciaModule, // notificação compulsória (SINAN)
     RegulacaoModule, // regulação de vagas (SISREG-like)
     EpidemiologiaModule, // painel epidemiológico (agregados)
+
+    // FASE 7 — terminologias oficiais (CID-10, medicamentos)
+    TerminologiaModule,
   ],
 
   providers: [

@@ -3,12 +3,18 @@
 import type { ProntuarioTimelineItem } from '@/services/prontuario.service';
 import { Badge } from '@/components/ui/primitives';
 
-const toneByType: Record<string, 'blue' | 'green' | 'amber' | 'slate'> = {
+const toneByType: Record<string, 'blue' | 'green' | 'amber' | 'slate' | 'red'> = {
   ATENDIMENTO: 'blue',
   TRIAGEM: 'amber',
   PRESCRICAO: 'green',
+  EVOLUCAO: 'blue',
+  INTERNACAO: 'red',
+  ALTA: 'green',
   EXAME: 'slate',
   VACINA: 'green',
+  CIRURGIA: 'red',
+  ENCAMINHAMENTO: 'blue',
+  NOTIFICACAO: 'amber',
 };
 
 export function PatientTimeline({ items }: { items: ProntuarioTimelineItem[] }) {
@@ -30,6 +36,9 @@ export function PatientTimeline({ items }: { items: ProntuarioTimelineItem[] }) 
             )}
           </div>
           <p className="mt-1 text-sm text-slate-700">{item.resumo}</p>
+          {item.detalhe && (
+            <p className="text-xs text-slate-500">{item.detalhe}</p>
+          )}
         </li>
       ))}
     </ol>

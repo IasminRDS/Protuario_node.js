@@ -15,6 +15,7 @@ import {
   PageHeader,
   Badge,
 } from '@/components/ui/primitives';
+import { MedicamentoPicker } from '@/components/clinical/TerminologyPicker';
 
 const schema = z.object({
   atendimentoId: z.string().min(1, 'Informe o atendimento'),
@@ -28,7 +29,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function PrescricaoPage() {
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
 
   async function onSubmit(data: FormData) {
@@ -55,8 +56,11 @@ export default function PrescricaoPage() {
           <Field label="ID do atendimento" error={errors.atendimentoId?.message}>
             <Input placeholder="Vincule ao atendimento em andamento" {...register('atendimentoId')} />
           </Field>
-          <Field label="Medicamento" error={errors.medicamento?.message}>
-            <Input placeholder="Ex.: Dipirona 500mg" {...register('medicamento')} />
+          <Field label="Medicamento (catálogo RENAME)" error={errors.medicamento?.message}>
+            <MedicamentoPicker
+              value={watch('medicamento') ?? ''}
+              onChange={(v) => setValue('medicamento', v, { shouldValidate: true })}
+            />
           </Field>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Dosagem">

@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
+import { GovBar } from '@/components/layout/GovBar';
 
 /**
  * Shell protegido. Hidrata a sessão a partir do token e redireciona para
@@ -37,11 +38,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    <div className="flex h-screen flex-col overflow-hidden">
+      <a href="#conteudo" className="skip-link">
+        Ir para o conteúdo
+      </a>
+      <GovBar />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Topbar />
+          <main id="conteudo" className="flex-1 overflow-y-auto p-6">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );

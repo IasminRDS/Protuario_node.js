@@ -5,13 +5,19 @@
    Cores de chrome + cores semânticas de ESTADO CLÍNICO.
    ============================================================ */
 @theme {
-  /* Chrome do sistema */
-  --color-clinic-bg: #f1f5f9;
+  /* Chrome do sistema — paleta gov.br (DSGov): azul institucional #1351B4,
+     amarelo #FFCD07. Os tokens clinic-* são o ponto único de re-skin. */
+  --color-clinic-bg: #f8f8f8;
   --color-clinic-surface: #ffffff;
   --color-clinic-border: #e2e8f0;
-  --color-clinic-primary: #0d6ea3;
-  --color-clinic-primary-dark: #0b587f;
-  --color-clinic-accent: #0ea5a5;
+  --color-clinic-primary: #1351b4;
+  --color-clinic-primary-dark: #0c326f;
+  --color-clinic-accent: #ffcd07;
+
+  /* Tokens DSGov adicionais (barra gov.br, rodapé) */
+  --color-govbr-blue: #1351b4;
+  --color-govbr-blue-dark: #071d41;
+  --color-govbr-yellow: #ffcd07;
 
   /* Estado clínico do paciente (usado por StatusBadge / FSM) */
   --color-status-registered: #64748b; /* slate  */
@@ -43,4 +49,31 @@ body {
 
 table {
   font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Acessibilidade (eMAG/WCAG)
+   ============================================================ */
+
+/* Foco visível e consistente em todo elemento interativo (teclado). */
+:focus-visible {
+  outline: 2px solid var(--color-govbr-blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Skip-link: primeiro elemento tabulável; aparece só com foco. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 100;
+  background: var(--color-govbr-blue-dark);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0 0 4px 0;
+  font-size: 0.8rem;
+}
+.skip-link:focus {
+  left: 0;
+  top: 0;
 }
