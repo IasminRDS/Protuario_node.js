@@ -192,13 +192,13 @@ export default function EpidemiologiaPage() {
               layout="vertical"
               margin={{ top: 4, right: 16, bottom: 0, left: 40 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-chart-grid)" />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
               <YAxis
                 type="category"
                 dataKey="agravo"
                 width={140}
-                tick={{ fontSize: 10, fill: '#334155' }}
+                tick={{ fontSize: 10, fill: 'var(--color-chart-axis)' }}
               />
               <Tooltip formatter={(v) => [v as number, 'Notificações']} />
               <Bar dataKey="total" fill="#0f766e" radius={[0, 4, 4, 0]} />
@@ -219,16 +219,16 @@ export default function EpidemiologiaPage() {
               }))}
               margin={{ top: 4, right: 16, bottom: 0, left: -16 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-chart-grid)" />
               <XAxis
                 dataKey="nome"
-                tick={{ fontSize: 10, fill: '#334155' }}
+                tick={{ fontSize: 10, fill: 'var(--color-chart-axis)' }}
                 interval={0}
                 angle={-20}
                 textAnchor="end"
                 height={60}
               />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
               <Tooltip formatter={(v) => [v as number, 'Notificações']} />
               <Bar dataKey="total" fill="#1d4ed8" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -242,9 +242,9 @@ export default function EpidemiologiaPage() {
         >
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={leitos ?? []} margin={{ top: 4, right: 16, bottom: 0, left: -16 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="setor" tick={{ fontSize: 11, fill: '#334155' }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-chart-grid)" />
+              <XAxis dataKey="setor" tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
               <Tooltip />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="ocupados" name="Ocupados" stackId="a" fill="#dc2626" />
@@ -299,9 +299,9 @@ export default function EpidemiologiaPage() {
               data={regulacao?.porPrioridade ?? []}
               margin={{ top: 4, right: 16, bottom: 0, left: -16 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="prioridade" tick={{ fontSize: 11, fill: '#334155' }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-chart-grid)" />
+              <XAxis dataKey="prioridade" tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
               <Tooltip formatter={(v) => [v as number, 'Encaminhamentos']} />
               <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                 {(regulacao?.porPrioridade ?? []).map((p) => (
@@ -322,9 +322,9 @@ export default function EpidemiologiaPage() {
               data={regulacao?.porStatus ?? []}
               margin={{ top: 4, right: 16, bottom: 0, left: -16 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="status" tick={{ fontSize: 10, fill: '#334155' }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-chart-grid)" />
+              <XAxis dataKey="status" tick={{ fontSize: 10, fill: 'var(--color-chart-axis)' }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
               <Tooltip formatter={(v) => [v as number, 'Encaminhamentos']} />
               <Bar dataKey="total" fill="#0f766e" radius={[4, 4, 0, 0]} />
             </BarChart>

@@ -19,6 +19,10 @@
   --color-govbr-blue-dark: #071d41;
   --color-govbr-yellow: #ffcd07;
 
+  /* Neutros de gráfico (grid/eixos) — theme-aware p/ Recharts (ver dark). */
+  --color-chart-grid: #e2e8f0;
+  --color-chart-axis: #64748b;
+
   /* Estado clínico do paciente (usado por StatusBadge / FSM) */
   --color-status-registered: #64748b; /* slate  */
   --color-status-triage: #d97706; /* amber  */
@@ -97,6 +101,10 @@ table {
   --color-clinic-bg: #0b1220;
   --color-clinic-surface: #111a2e;
   --color-clinic-border: #26334d;
+
+  /* Neutros de gráfico no escuro: grid discreto, eixos legíveis. */
+  --color-chart-grid: #26334d;
+  --color-chart-axis: #8fa1bd;
 
   /* Superfícies: bg-white passa a ser a superfície escura. Textos brancos
      intencionais são preservados pela regra .text-white abaixo. */

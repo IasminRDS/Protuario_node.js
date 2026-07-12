@@ -48,9 +48,9 @@ export function AtendimentosChart({
       ) : (
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={serie} margin={{ top: 8, right: 16, bottom: 0, left: -16 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="dia" tick={{ fontSize: 11, fill: '#64748b' }} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-chart-grid)" />
+            <XAxis dataKey="dia" tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }} />
             <Tooltip
               labelFormatter={(l) => `Dia ${l}`}
               formatter={(v) => [v as number, 'Atendimentos']}
