@@ -10,6 +10,20 @@ import { AppModule } from './app.module';
   return this.toString();
 };
 
+// 🛡️ Disponibilidade: erros de FUNDO (ex.: retry do Kafka, socket) não podem
+// derrubar a API. São logados; o Outbox garante a entrega dos eventos ao menos
+// uma vez. Erros de request seguem tratados pelo AllExceptionsFilter.
+process.on('unhandledRejection', (reason) => {
+  console.error(
+    JSON.stringify({
+      level: 'ERROR',
+      logger: 'process',
+      message: 'unhandledRejection',
+      reason: reason instanceof Error ? reason.message : String(reason),
+    }),
+  );
+});
+
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
@@ -34,7 +48,8 @@ async function bootstrap(): Promise<void> {
 
   // 📌 Prefixo global + versionamento
   // Resultado final: /api/v1/*
-  app.setGlobalPrefix('api');
+  // /metrics fica fora do prefixo/versão (padrão de scrape do Prometheus).
+  app.setGlobalPrefix('api', { exclude: ['metrics'] });
 
   app.enableVersioning({
     type: VersioningType.URI,

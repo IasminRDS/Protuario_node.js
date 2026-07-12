@@ -51,12 +51,21 @@ export class KafkaEventBus implements EventBus, OnModuleInit, OnModuleDestroy {
     this.producer = kafka.producer({
       idempotent: true,
       maxInFlightRequests: 1,
+      allowAutoTopicCreation: true, // 1º evento cria o tópico (dev/homolog)
       retry: { retries: 10 },
     });
 
-    await this.producer.connect();
-
-    logJson('info', 'KafkaEventBus', 'producer.connected');
+    // Resiliência: uma indisponibilidade do Kafka NÃO pode derrubar o boot da
+    // API. Se a conexão inicial falhar, loga e segue — o Outbox reprocessa os
+    // eventos quando o broker voltar (entrega ao menos uma vez, sem perda).
+    try {
+      await this.producer.connect();
+      logJson('info', 'KafkaEventBus', 'producer.connected');
+    } catch (err) {
+      logJson('error', 'KafkaEventBus', 'producer.connect.failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -56,6 +56,8 @@ import { RegulacaoModule } from './modules/regulacao/regulacao.module';
 import { EpidemiologiaModule } from './modules/epidemiologia/epidemiologia.module';
 import { TerminologiaModule } from './modules/terminologia/terminologia.module';
 import { GovbrModule } from './modules/govbr/govbr.module';
+import { ObservabilityModule } from './shared/observability/observability.module';
+import { MetricsInterceptor } from './shared/observability/metrics.interceptor';
 import { DocumentosModule } from './modules/documentos/documentos.module';
 import { RndsModule } from './modules/rnds/rnds.module';
 import { LgpdModule } from './modules/lgpd/lgpd.module';
@@ -80,6 +82,7 @@ import { LgpdModule } from './modules/lgpd/lgpd.module';
 
     PrismaModule,
     EventBusModule, // backbone de eventos (SNPE)
+    ObservabilityModule, // métricas Prometheus (/metrics)
     AuditoriaModule,
     AuthModule,
     PerfisModule,
@@ -140,6 +143,8 @@ import { LgpdModule } from './modules/lgpd/lgpd.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard }, // RBAC institucional (roles→permissions)
 
+    // Observabilidade: mede latência/erros de todas as rotas (mais externo).
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
     // F0.2: transação-por-request (mais externo) — abre 1 tx p/ mutações.
     { provide: APP_INTERCEPTOR, useClass: TenantTxInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
