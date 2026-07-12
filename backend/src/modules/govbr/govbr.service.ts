@@ -140,11 +140,71 @@ export class GovbrService {
       }
     }
 
-    // MODO REAL (ponto de extensão): trocar code por tokens no gov.br, ler o
-    // userinfo e casar sub(CPF) com Usuario.cpf.
-    throw new BadRequestException(
-      'Integração gov.br real não configurada (defina GOVBR_SIMULATOR=false com as credenciais).',
-    );
+    // MODO REAL — OIDC Authorization Code: troca o `code` no token endpoint do
+    // gov.br e lê o userinfo. `sub` = CPF → casa com Usuario.cpf (sem
+    // auto-provisionamento: profissional precisa existir e estar ativo).
+    const tokenUrl = this.config.get<string>('GOVBR_TOKEN_URL', '');
+    const userinfoUrl = this.config.get<string>('GOVBR_USERINFO_URL', '');
+    const clientId = this.config.getOrThrow<string>('GOVBR_CLIENT_ID');
+    const clientSecret = this.config.getOrThrow<string>('GOVBR_CLIENT_SECRET');
+    if (!tokenUrl || !userinfoUrl) {
+      throw new BadRequestException('Endpoints gov.br não configurados.');
+    }
+
+    const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const tokenRes = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${basic}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: this.redirectUri(),
+      }),
+    });
+    if (!tokenRes.ok) {
+      throw new UnauthorizedException('Falha na troca do código no gov.br.');
+    }
+    const tokenJson = (await tokenRes.json()) as { access_token?: string };
+    if (!tokenJson.access_token) {
+      throw new UnauthorizedException('Token gov.br ausente.');
+    }
+
+    const uiRes = await fetch(userinfoUrl, {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` },
+    });
+    if (!uiRes.ok) throw new UnauthorizedException('Falha ao ler userinfo gov.br.');
+    const ui = (await uiRes.json()) as {
+      sub?: string;
+      amr?: string[];
+      'urn:govbr:confiabilidades'?: string[];
+    };
+    const cpf = (ui.sub ?? '').replace(/\D/g, '');
+    if (!cpf) throw new UnauthorizedException('CPF ausente no userinfo gov.br.');
+
+    const usuario = await this.prisma.usuario.findFirst({
+      where: { cpf, ativo: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (!usuario) {
+      throw new UnauthorizedException(
+        'CPF autenticado no gov.br não corresponde a um profissional ativo.',
+      );
+    }
+
+    // Selo a partir da confiabilidade gov.br (biometria/certificado = ouro).
+    const conf = [...(ui.amr ?? []), ...(ui['urn:govbr:confiabilidades'] ?? [])]
+      .join(' ')
+      .toLowerCase();
+    const selo: GovbrSelo = /biometria|certificado|cert/.test(conf)
+      ? 'ouro'
+      : /cadastro|servidor|banco/.test(conf)
+        ? 'prata'
+        : 'bronze';
+
+    return { usuarioId: usuario.id.toString(), selo };
   }
 
   /** Callback: resolve o code, emite nossos tokens e devolve um código de uso único. */

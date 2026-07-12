@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { currentHospitalId } from '../../shared/tenant/tenant-context';
@@ -16,7 +17,39 @@ export class LgpdService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Relatório de retenção legal (CFM 1.821/2007: mínimo 20 anos). Reporta o
+   * corte temporal e quantos pacientes JÁ soft-deletados estão além do prazo —
+   * ELEGÍVEIS a expurgo, que NÃO é automático (decisão jurídica/institucional;
+   * o prontuário digital pode ser mantido permanentemente). Apenas informa.
+   */
+  async relatorioRetencao() {
+    const anos = this.config.get<number>('RETENTION_YEARS', 20);
+    const corte = new Date();
+    corte.setFullYear(corte.getFullYear() - anos);
+
+    const [totalPacientes, softDeletados, elegiveisExpurgo] = await Promise.all([
+      this.prisma.paciente.count({ where: { deletedAt: null } }),
+      this.prisma.paciente.count({ where: { deletedAt: { not: null } } }),
+      this.prisma.paciente.count({
+        where: { deletedAt: { not: null, lt: corte } },
+      }),
+    ]);
+
+    return {
+      politica: `CFM Res. 1.821/2007 — retenção mínima de ${anos} anos`,
+      corteRetencao: corte.toISOString().slice(0, 10),
+      totalPacientesAtivos: totalPacientes,
+      pacientesSoftDeletados: softDeletados,
+      elegiveisAExpurgo: elegiveisExpurgo,
+      observacao:
+        'Expurgo NÃO é automático — o prontuário eletrônico pode ser mantido ' +
+        'permanentemente; a eliminação exige decisão institucional/jurídica.',
+    };
+  }
 
   /** Registra o aceite do termo (base legal art. 7º/11 LGPD). */
   async registrarConsentimento(

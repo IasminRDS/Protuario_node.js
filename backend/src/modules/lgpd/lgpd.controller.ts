@@ -2,6 +2,8 @@ import { Body, Controller, Get, HttpCode, Ip, Param, Post } from '@nestjs/common
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { RequirePermissions } from '../../shared/decorators/require-permissions.decorator';
+import { Permission } from '../../shared/rbac/permissions';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
 import { LgpdService } from './lgpd.service';
 
@@ -26,6 +28,13 @@ class BreakGlassDto {
 @Controller({ path: 'lgpd', version: '1' })
 export class LgpdController {
   constructor(private readonly lgpd: LgpdService) {}
+
+  @Get('retencao')
+  @RequirePermissions(Permission.AUDIT_READ)
+  @ApiOperation({ summary: 'Relatório de retenção legal (CFM 1.821/2007) e elegibilidade a expurgo.' })
+  async retencao() {
+    return { data: await this.lgpd.relatorioRetencao(), message: 'Retenção legal.' };
+  }
 
   @Get('consentimento/status')
   @ApiOperation({ summary: 'Consentimento vigente do usuário atual.' })

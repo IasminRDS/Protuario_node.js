@@ -17,12 +17,21 @@ export const envSchema = z.object({
   // Sem valor, cai em DATABASE_URL (ambientes sem RLS ativo).
   MAINTENANCE_DATABASE_URL: z.string().url().optional(),
 
-  JWT_ACCESS_SECRET: z.string().min(16),
+  // Segredos fortes: >=32 chars em produção (256 bits). Em dev/test aceita 16.
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(process.env.NODE_ENV === 'production' ? 32 : 16),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_SECRET: z.string().min(16),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(process.env.NODE_ENV === 'production' ? 32 : 16),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
   LOGIN_MAX_ATTEMPTS: z.coerce.number().default(5),
+
+  // Retenção legal do prontuário (CFM Res. 1.821/2007: mínimo 20 anos a contar
+  // do último registro). Base para o relatório de elegibilidade ao expurgo.
+  RETENTION_YEARS: z.coerce.number().default(20),
 
   // MFA step-up nas rotas de export/backup (LGPD). false só em teste/CI.
   MFA_ENFORCE_EXPORT: z
@@ -41,9 +50,13 @@ export const envSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
   GOVBR_CLIENT_ID: z.string().default('snpe-dev'),
+  GOVBR_CLIENT_SECRET: z.string().default(''),
   GOVBR_AUTHORIZE_URL: z.string().default(''), // vazio = usa o simulador embutido
   GOVBR_TOKEN_URL: z.string().default(''),
   GOVBR_USERINFO_URL: z.string().default(''),
+  GOVBR_REDIRECT_URI: z
+    .string()
+    .default('http://localhost:3000/api/v1/auth/govbr/callback'),
   // Para onde o backend redireciona após concluir o login federado.
   GOVBR_FRONTEND_URL: z.string().default('http://localhost:3001/login'),
 

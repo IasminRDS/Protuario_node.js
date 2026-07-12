@@ -76,8 +76,10 @@ services:
       # Manutenção (role DONA): refresh de materialized views + pg_dump.
       MAINTENANCE_DATABASE_URL: postgresql://prontuario:prontuario@postgres:5432/prontuario_e2
       RLS_ENABLED: "true"
-      JWT_ACCESS_SECRET: change-me-access
-      JWT_REFRESH_SECRET: change-me-refresh
+      # Segredos de DEV (>=32 chars, exigido em produção). TROQUE via secrets
+      # manager em produção real — nunca versione segredos reais.
+      JWT_ACCESS_SECRET: dev-access-secret-change-me-0123456789abcd
+      JWT_REFRESH_SECRET: dev-refresh-secret-change-me-0123456789abcd
       CORS_ORIGINS: http://localhost:3001,http://localhost:4300
       # Login gov.br (OIDC) — simulador embutido em dev/homolog.
       GOVBR_ENABLED: "true"
