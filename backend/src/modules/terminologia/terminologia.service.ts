@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { CID10, type Cid10 } from './cid10.catalog';
 import { MEDICAMENTOS, type Medicamento } from './medicamentos.catalog';
+import {
+  CBO,
+  CNES,
+  SIGTAP,
+  type CboItem,
+  type CnesItem,
+  type SigtapItem,
+} from './estruturantes.catalog';
 
 /** Normaliza para busca: minúsculas, sem acentos. */
 function norm(s: string): string {
@@ -59,5 +67,32 @@ export class TerminologiaService {
       .filter((m) => m._texto.includes(termo))
       .slice(0, limit)
       .map(({ nome, apresentacao, via }) => ({ nome, apresentacao, via }));
+  }
+
+  buscarCbo(q: string, limit = 20): CboItem[] {
+    const termo = norm(q.trim());
+    if (!termo) return [];
+    return CBO.filter(
+      (c) => c.codigo.startsWith(termo) || norm(c.descricao).includes(termo),
+    ).slice(0, limit);
+  }
+
+  buscarSigtap(q: string, limit = 20): SigtapItem[] {
+    const termo = norm(q.trim());
+    if (!termo) return [];
+    return SIGTAP.filter(
+      (s) => s.codigo.startsWith(termo) || norm(s.descricao).includes(termo),
+    ).slice(0, limit);
+  }
+
+  buscarCnes(q: string, limit = 20): CnesItem[] {
+    const termo = norm(q.trim());
+    if (!termo) return [];
+    return CNES.filter(
+      (c) =>
+        c.cnes.startsWith(termo) ||
+        norm(c.nome).includes(termo) ||
+        norm(c.municipio).includes(termo),
+    ).slice(0, limit);
   }
 }

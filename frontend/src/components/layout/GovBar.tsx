@@ -60,3 +60,43 @@ export function GovFooter() {
     </footer>
   );
 }
+
+const APP_VERSAO = 'v1.4.0-dev';
+
+/**
+ * Rodapé da área logada (DSGov): versão do sistema, mapa do site (Sobre) e
+ * base legal — presença institucional esperada em sistema de governo.
+ */
+export function AppFooter() {
+  return (
+    <footer className="border-t border-slate-200 bg-white px-6 py-2.5 text-[11px] text-slate-400">
+      <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-2">
+        <span>
+          SNPE · Sistema Nacional de Prontuário Eletrônico —{' '}
+          <span className="font-mono">{APP_VERSAO}</span>
+        </span>
+        <nav aria-label="Rodapé" className="flex flex-wrap gap-x-4 gap-y-1">
+          <a href="/sobre" className="hover:text-clinic-primary hover:underline">
+            Sobre o sistema
+          </a>
+          <a
+            href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-clinic-primary hover:underline"
+          >
+            LGPD (Lei 13.709/2018)
+          </a>
+          <a
+            href="https://www.gov.br/governodigital/pt-br/acessibilidade-digital"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-clinic-primary hover:underline"
+          >
+            Acessibilidade (eMAG)
+          </a>
+        </nav>
+      </div>
+    </footer>
+  );
+}

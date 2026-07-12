@@ -1,9 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { auditoriaService } from '@/services/auditoria.service';
+import { ShieldCheck, ShieldAlert } from 'lucide-react';
+import {
+  auditoriaService,
+  type VerificacaoCadeia,
+} from '@/services/auditoria.service';
 import { apiErrorMessage } from '@/services/api';
 import {
+  Button,
   Card,
   Input,
   PageHeader,
@@ -21,6 +26,21 @@ export default function AuditoriaPage() {
   const [items, setItems] = useState<Auditoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [cadeia, setCadeia] = useState<VerificacaoCadeia | null>(null);
+  const [verificando, setVerificando] = useState(false);
+
+  async function verificarCadeia() {
+    setVerificando(true);
+    try {
+      await auditoriaService.selar(); // sela pendentes antes de verificar
+      setCadeia(await auditoriaService.verify());
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Falha ao verificar a cadeia.'));
+    } finally {
+      setVerificando(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +77,43 @@ export default function AuditoriaPage() {
         title="Auditoria"
         subtitle="Rastreabilidade de ações (LGPD) — registros imutáveis"
       />
+
+      {/* Verificação de integridade da cadeia de hash (ADR-06). */}
+      <Card className="mb-4 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+              <ShieldCheck className="h-4 w-4" /> Integridade criptográfica
+            </h2>
+            <p className="text-xs text-slate-500">
+              Cada evento é encadeado por hash SHA-256. A verificação recomputa a
+              cadeia e detecta qualquer adulteração.
+            </p>
+          </div>
+          <Button onClick={verificarCadeia} loading={verificando}>
+            Verificar integridade
+          </Button>
+        </div>
+        {cadeia && (
+          <div
+            className={`mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
+              cadeia.integra
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-red-50 text-red-700'
+            }`}
+          >
+            {cadeia.integra ? (
+              <ShieldCheck className="h-4 w-4" />
+            ) : (
+              <ShieldAlert className="h-4 w-4" />
+            )}
+            {cadeia.integra
+              ? `Cadeia íntegra — ${cadeia.verificados} evento(s) verificado(s).`
+              : `Cadeia quebrada a partir do evento #${cadeia.quebradoNoId}.`}
+          </div>
+        )}
+      </Card>
+
       <Card>
         <div className="border-b border-slate-200 p-3">
           <Input

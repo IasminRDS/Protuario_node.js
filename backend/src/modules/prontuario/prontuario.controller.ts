@@ -16,6 +16,14 @@ export class ProntuarioController {
     private readonly auditoria: AuditoriaService,
   ) {}
 
+  @Get(':pacienteId/acessos')
+  @RequirePermissions(Permission.CLINICAL_READ)
+  @ApiOperation({ summary: 'Quem acessou o prontuário deste paciente (transparência LGPD).' })
+  async acessos(@Param('pacienteId') pacienteId: string) {
+    const data = await this.service.acessos(pacienteId);
+    return { data, message: 'Trilha de acessos ao prontuário.' };
+  }
+
   @Get(':pacienteId/sumario')
   @RequirePermissions(Permission.CLINICAL_READ)
   @ApiOperation({

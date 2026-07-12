@@ -6,7 +6,9 @@ import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
-import { GovBar } from '@/components/layout/GovBar';
+import { GovBar, AppFooter } from '@/components/layout/GovBar';
+import { VLibras } from '@/components/layout/VLibras';
+import { LgpdConsentBanner } from '@/components/layout/LgpdConsentBanner';
 
 /**
  * Shell protegido. Hidrata a sessão a partir do token e redireciona para
@@ -50,8 +52,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <main id="conteudo" className="flex-1 overflow-y-auto p-6">
             {children}
           </main>
+          <AppFooter />
         </div>
       </div>
+      <VLibras />
+      <LgpdConsentBanner />
     </div>
   );
 }

@@ -28,4 +28,25 @@ export class TerminologiaController {
       message: 'Medicamentos.',
     };
   }
+
+  @Get('cbo')
+  @ApiQuery({ name: 'q', description: 'Código ou ocupação.' })
+  @ApiOperation({ summary: 'Buscar CBO (Classificação Brasileira de Ocupações).' })
+  cbo(@Query('q') q = '') {
+    return { data: this.terminologia.buscarCbo(q), message: 'CBO.' };
+  }
+
+  @Get('sigtap')
+  @ApiQuery({ name: 'q', description: 'Código ou procedimento.' })
+  @ApiOperation({ summary: 'Buscar procedimentos SIGTAP (Tabela SUS).' })
+  sigtap(@Query('q') q = '') {
+    return { data: this.terminologia.buscarSigtap(q), message: 'SIGTAP.' };
+  }
+
+  @Get('cnes')
+  @ApiQuery({ name: 'q', description: 'CNES, nome ou município.' })
+  @ApiOperation({ summary: 'Buscar estabelecimentos de saúde (CNES).' })
+  cnes(@Query('q') q = '') {
+    return { data: this.terminologia.buscarCnes(q), message: 'CNES.' };
+  }
 }

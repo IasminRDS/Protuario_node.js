@@ -70,7 +70,24 @@ export interface SumarioPaciente {
   timeline: ProntuarioTimelineItem[];
 }
 
+export interface AcessoProntuario {
+  id: string;
+  quem: string;
+  perfil: string | null;
+  operacao: string;
+  finalidade: string;
+  ip: string | null;
+  quando: string;
+}
+
 export const prontuarioService = {
+  async getAcessos(pacienteId: string): Promise<AcessoProntuario[]> {
+    const { data } = await api.get<ApiEnvelope<AcessoProntuario[]>>(
+      `/prontuarios/${pacienteId}/acessos`,
+    );
+    return data.data;
+  },
+
   async getByPaciente(pacienteId: string): Promise<ProntuarioCompleto> {
     const { data } = await api.get<ApiEnvelope<ProntuarioCompleto>>(
       `/prontuarios/${pacienteId}`,

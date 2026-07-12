@@ -1208,3 +1208,27 @@ model ConsentimentoLgpd {
   @@index([pacienteId])
   @@map("consentimento_lgpd")
 }
+
+// ###########################################################################
+// FASE 8 — INTEROPERABILIDADE RNDS (item 3). Rastreia o envio de registros
+// clínicos à Rede Nacional de Dados em Saúde: cada bundle FHIR (RAC, RIA,
+// resultado de exame) vira uma linha com status e protocolo de recebimento.
+// ###########################################################################
+model EnvioRnds {
+  id           BigInt    @id @default(autoincrement())
+  tipo         String    @db.VarChar(20) // RAC|RIA|RESULTADO_EXAME
+  recursoTipo  String    @map("recurso_tipo") @db.VarChar(40) // Bundle|Immunization|DiagnosticReport
+  entityId     String    @map("entity_id") @db.VarChar(50) // id local do registro de origem
+  pacienteId   BigInt?   @map("paciente_id")
+  hospitalId   String?   @map("hospital_id") @db.Uuid
+  status       String    @default("PENDENTE") @db.VarChar(20) // PENDENTE|ENVIADO|ERRO
+  protocolo    String?   @db.VarChar(60) // id de recebimento da RNDS
+  mensagem     String?   @db.Text
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  enviadoEm    DateTime? @map("enviado_em")
+
+  @@index([status])
+  @@index([pacienteId])
+  @@index([hospitalId])
+  @@map("envio_rnds")
+}

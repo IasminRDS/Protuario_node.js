@@ -146,6 +146,36 @@ export class ProntuarioService {
     };
   }
 
+  /**
+   * "Quem acessou meu prontuário" (transparência LGPD, art. 9º/18). Lê a trilha
+   * de auditoria de acessos a este paciente — a Auditoria fica FORA do RLS, então
+   * é lida diretamente. Não expõe conteúdo clínico, só o registro do acesso.
+   */
+  async acessos(pacienteId: string, limit = 100) {
+    const rows = await this.prisma.auditoria.findMany({
+      where: {
+        entity: 'paciente',
+        entityId: pacienteId,
+        operacao: { in: ['PATIENT_VIEWED', 'PDF_PRONTUARIO', 'EXPORTAR'] },
+      },
+      orderBy: { dataEvento: 'desc' },
+      take: limit,
+      include: {
+        usuario: { select: { nome: true, perfil: { select: { nome: true } } } },
+      },
+    });
+
+    return rows.map((r) => ({
+      id: r.id.toString(),
+      quem: r.usuario?.nome ?? 'Sistema',
+      perfil: r.usuario?.perfil?.nome ?? null,
+      operacao: r.operacao,
+      finalidade: r.reason ?? 'assistencial',
+      ip: r.ip,
+      quando: r.dataEvento,
+    }));
+  }
+
   /** Monta a linha do tempo clínica consolidada do paciente. */
   async timeline(pacienteId: string) {
     const pid = BigInt(pacienteId);

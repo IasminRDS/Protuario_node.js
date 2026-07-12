@@ -57,6 +57,8 @@ import { EpidemiologiaModule } from './modules/epidemiologia/epidemiologia.modul
 import { TerminologiaModule } from './modules/terminologia/terminologia.module';
 import { GovbrModule } from './modules/govbr/govbr.module';
 import { DocumentosModule } from './modules/documentos/documentos.module';
+import { RndsModule } from './modules/rnds/rnds.module';
+import { LgpdModule } from './modules/lgpd/lgpd.module';
 
 @Module({
   imports: [
@@ -122,9 +124,11 @@ import { DocumentosModule } from './modules/documentos/documentos.module';
     // FASE 7 — terminologias oficiais (CID-10, medicamentos)
     TerminologiaModule,
 
-    // FASE 8 — governo: login gov.br (OIDC) + documentos assinados
+    // FASE 8 — governo: login gov.br (OIDC) + documentos assinados + RNDS
     GovbrModule,
     DocumentosModule, // @Global: assinatura + verificação de documentos
+    RndsModule, // interoperabilidade RNDS (FHIR)
+    LgpdModule, // consentimento versionado + break-the-glass
   ],
 
   providers: [
