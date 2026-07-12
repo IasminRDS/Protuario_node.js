@@ -11,7 +11,7 @@ import {
   TenantContextError,
   TENANT_MODELS,
 } from '../../shared/tenant/tenant-guard';
-import { RLS_ENABLED, setTenantGuc } from '../../shared/tenant/rls';
+import { RLS_ENABLED, setTenantGuc, setSuperadminGuc } from '../../shared/tenant/rls';
 
 /**
  * Ações de LEITURA (após scopeParams, que já reescreve findUnique→findFirst).
@@ -84,13 +84,39 @@ export class PrismaService
       // concorrentes se atropelam e o ALS não sobrevive ao agendador do Prisma.
       const model = scoped.model ?? '';
       const action = scoped.action as string;
+      const isTenantModel = TENANT_MODELS.has(model);
+      const isRead = READ_ACTIONS.has(action);
+
+      // SuperAdmin: LEITURA cross-tenant sob GUC `app.superadmin` (USING libera
+      // todos os tenants; escrita segue barrada pelo WITH CHECK). Só READ.
+      if (
+        RLS_ENABLED &&
+        ctx &&
+        !params.runInTransaction &&
+        ctx.bypassTenant &&
+        isTenantModel &&
+        isRead
+      ) {
+        return this.$transaction(async (tx) => {
+          await setSuperadminGuc(tx);
+          const delegate = (
+            tx as unknown as Record<
+              string,
+              Record<string, (a: unknown) => Promise<unknown>>
+            >
+          )[delegateName(model)];
+          return delegate[action](scoped.args);
+        });
+      }
+
+      // Tenant comum: pin por hospital_id (leitura E escrita).
       if (
         RLS_ENABLED &&
         ctx &&
         !params.runInTransaction &&
         ctx.hospitalId &&
-        TENANT_MODELS.has(model) &&
-        (READ_ACTIONS.has(action) || WRITE_ACTIONS.has(action))
+        isTenantModel &&
+        (isRead || WRITE_ACTIONS.has(action))
       ) {
         const hospitalId = ctx.hospitalId;
         return this.$transaction(async (tx) => {

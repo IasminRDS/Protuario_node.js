@@ -28,3 +28,16 @@ export async function setTenantGuc(
 ): Promise<void> {
   await tx.$executeRaw`SELECT set_config('app.hospital_id', ${hospitalId}, true)`;
 }
+
+/**
+ * Habilita a LEITURA cross-tenant do SuperAdmin (GUC `app.superadmin`='on',
+ * escopo LOCAL). A policy passa a permitir USING para qualquer hospital; o
+ * WITH CHECK de escrita permanece estrito (SuperAdmin não grava cross-tenant
+ * às cegas). Cada acesso é auditado como PHI. Só chamado quando o perfil
+ * SuperAdmin foi revalidado no banco (bypassTenant), nunca por flag do cliente.
+ */
+export async function setSuperadminGuc(
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await tx.$executeRaw`SELECT set_config('app.superadmin', 'on', true)`;
+}
