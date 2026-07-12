@@ -51,6 +51,8 @@ services:
       GOVBR_ENABLED: "true"
       GOVBR_SIMULATOR: "true"
       GOVBR_FRONTEND_URL: http://localhost:3001/login
+      # Assinatura digital: sem DOC_SIGNING_PRIVATE_KEY usa par RSA efêmero (dev).
+      DOC_VERIFY_URL: http://localhost:3001/verificar
       # Rate limit — ATENÇÃO: throttler v6 usa TTL em MILISSEGUNDOS (60000 = 60s).
       THROTTLE_TTL: 60000
       THROTTLE_LIMIT: 100

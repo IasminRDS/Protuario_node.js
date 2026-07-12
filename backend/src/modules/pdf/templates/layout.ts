@@ -120,6 +120,64 @@ export function assinatura(
     .text(medico?.crm && medico.crm !== '—' ? `CRM ${medico.crm}` : 'CRM não informado');
 }
 
+export interface AssinaturaDigital {
+  signatarioNome: string;
+  signatarioDoc: string | null;
+  docId: string;
+  verifyUrl: string;
+  qrPng: Buffer;
+}
+
+/**
+ * Bloco de assinatura digital + QR de verificação (padrão da prescrição/
+ * documento eletrônico do MS). O QR aponta para a página pública que confirma
+ * a autenticidade e a integridade da assinatura sem expor dados do paciente.
+ */
+export function blocoAssinaturaDigital(
+  doc: PDFKit.PDFDocument,
+  a: AssinaturaDigital,
+): void {
+  doc.moveDown(1.5);
+  linha(doc);
+  doc.moveDown(0.5);
+
+  const left = doc.page.margins.left;
+  const topo = doc.y;
+  const qrTam = 92;
+  const qrX = doc.page.width - doc.page.margins.right - qrTam;
+
+  // Coluna de texto (à esquerda do QR).
+  doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10).text('ASSINADO DIGITALMENTE', left, topo);
+  doc.moveDown(0.2);
+  doc.fillColor(INK).font('Helvetica-Bold').fontSize(10).text(a.signatarioNome, { width: qrX - left - 16 });
+  if (a.signatarioDoc) {
+    doc.font('Helvetica').fontSize(9).fillColor(MUTED).text(a.signatarioDoc);
+  }
+  doc.moveDown(0.3);
+  doc
+    .font('Helvetica')
+    .fontSize(8)
+    .fillColor(MUTED)
+    .text(
+      'Documento assinado eletronicamente (SHA-256 / RSA). Válido sem assinatura de próprio punho.',
+      { width: qrX - left - 16 },
+    );
+  doc.moveDown(0.2);
+  doc.fontSize(8).fillColor(MUTED).text(`Código de verificação: ${a.docId}`, { width: qrX - left - 16 });
+  doc.fillColor(PRIMARY).text(a.verifyUrl, { width: qrX - left - 16, link: a.verifyUrl, underline: true });
+
+  // QR à direita, alinhado ao topo do bloco.
+  doc.image(a.qrPng, qrX, topo, { width: qrTam, height: qrTam });
+  doc
+    .fillColor(MUTED)
+    .font('Helvetica')
+    .fontSize(7)
+    .text('Aponte a câmera para verificar', qrX - 4, topo + qrTam + 2, {
+      width: qrTam + 8,
+      align: 'center',
+    });
+}
+
 export function rodape(doc: PDFKit.PDFDocument, meta: PdfMeta): void {
   doc.moveDown(1.5);
   linha(doc);

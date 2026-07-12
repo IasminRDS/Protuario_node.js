@@ -1,17 +1,31 @@
 import { randomUUID } from 'crypto';
+import PDFDocument from 'pdfkit';
+import * as QRCode from 'qrcode';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditExportService, ExportTipo } from '../audit/audit.service';
+import {
+  DocumentosService,
+  RegistroAssinatura,
+} from '../documentos/documentos.service';
 import { currentHospitalId } from '../../shared/tenant/tenant-context';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
-import { MedicoAssinante, PacientePdf, PdfMeta } from './templates/layout';
+import {
+  blocoAssinaturaDigital,
+  MedicoAssinante,
+  PacientePdf,
+  PdfMeta,
+} from './templates/layout';
 import { ProntuarioPdfData, renderProntuario } from './templates/prontuario.template';
 import { PrescricaoPdfData, renderPrescricao } from './templates/prescricao.template';
 import { AltaPdfData, renderAlta } from './templates/alta.template';
 
 export interface PreparedPdf {
   filename: string;
+  docId: string;
   render: (doc: PDFKit.PDFDocument) => void;
+  assinatura: RegistroAssinatura;
 }
 
 @Injectable()
@@ -19,7 +33,44 @@ export class PdfService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditExport: AuditExportService,
+    private readonly documentos: DocumentosService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Monta o PDF em buffer, anexa o bloco de assinatura digital + QR de
+   * verificação, assina (SHA-256 → RSA) e persiste o registro. O QR aponta para
+   * a página pública de verificação usando o `docId` (conhecido antes do hash).
+   */
+  async montarEAssinar(prepared: PreparedPdf): Promise<{ filename: string; buffer: Buffer }> {
+    const verifyBase = this.config.get<string>(
+      'DOC_VERIFY_URL',
+      'http://localhost:3001/verificar',
+    );
+    const verifyUrl = `${verifyBase}/${prepared.docId}`;
+    const qrPng = await QRCode.toBuffer(verifyUrl, { margin: 1, width: 120 });
+
+    const buffer = await new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks: Buffer[] = [];
+      doc.on('data', (c: Buffer) => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      prepared.render(doc);
+      blocoAssinaturaDigital(doc, {
+        signatarioNome: prepared.assinatura.signatarioNome,
+        signatarioDoc: prepared.assinatura.signatarioDoc ?? null,
+        docId: prepared.docId,
+        verifyUrl,
+        qrPng,
+      });
+      doc.end();
+    });
+
+    await this.documentos.registrar(prepared.docId, buffer, prepared.assinatura);
+    return { filename: prepared.filename, buffer };
+  }
 
   /** Filtro de tenant p/ modelos NÃO cobertos pelo tenant-guard (isolamento manual). */
   private tenantFilter() {
@@ -163,7 +214,16 @@ export class PdfService {
     await this.auditar(actor, 'PDF_PRONTUARIO', 'prontuario', paciente.id.toString(), ctx.meta.docId);
     return {
       filename: `prontuario-${paciente.id}-${ctx.meta.docId.slice(0, 8)}.pdf`,
+      docId: ctx.meta.docId,
       render: (doc) => renderProntuario(doc, data),
+      assinatura: {
+        tipo: 'PRONTUARIO',
+        pacienteId: paciente.id,
+        hospitalId: currentHospitalId(),
+        signatarioId: actor.id,
+        signatarioNome: ctx.medico.nome,
+        signatarioDoc: ctx.medico.crm !== '—' ? `CRM ${ctx.medico.crm}` : null,
+      },
     };
   }
 
@@ -206,7 +266,16 @@ export class PdfService {
     await this.auditar(actor, 'PDF_PRESCRICAO', 'prescricao', presc.id.toString(), ctx.meta.docId);
     return {
       filename: `prescricao-${presc.id}-${ctx.meta.docId.slice(0, 8)}.pdf`,
+      docId: ctx.meta.docId,
       render: (doc) => renderPrescricao(doc, data),
+      assinatura: {
+        tipo: 'PRESCRICAO',
+        pacienteId: presc.pacienteId,
+        hospitalId: currentHospitalId(),
+        signatarioId: actor.id,
+        signatarioNome: ctx.medico.nome,
+        signatarioDoc: ctx.medico.crm !== '—' ? `CRM ${ctx.medico.crm}` : null,
+      },
     };
   }
 
@@ -256,7 +325,16 @@ export class PdfService {
     await this.auditar(actor, 'PDF_ALTA', 'alta', internacao.id.toString(), ctx.meta.docId);
     return {
       filename: `alta-${internacao.id}-${ctx.meta.docId.slice(0, 8)}.pdf`,
+      docId: ctx.meta.docId,
       render: (doc) => renderAlta(doc, data),
+      assinatura: {
+        tipo: 'ALTA',
+        pacienteId: internacao.pacienteId,
+        hospitalId: currentHospitalId(),
+        signatarioId: actor.id,
+        signatarioNome: ctx.medico.nome,
+        signatarioDoc: ctx.medico.crm !== '—' ? `CRM ${ctx.medico.crm}` : null,
+      },
     };
   }
 }

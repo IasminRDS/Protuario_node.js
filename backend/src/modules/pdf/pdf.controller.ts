@@ -1,7 +1,6 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import PDFDocument from 'pdfkit';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { RawResponse } from '../../shared/decorators/raw-response.decorator';
 import { RequirePermissions } from '../../shared/decorators/require-permissions.decorator';
@@ -29,7 +28,7 @@ export class PdfController {
     @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ): Promise<void> {
-    this.stream(res, await this.pdf.prepararProntuario(id, user));
+    await this.stream(res, await this.pdf.prepararProntuario(id, user));
   }
 
   @Get('prescricao/:id')
@@ -40,7 +39,7 @@ export class PdfController {
     @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ): Promise<void> {
-    this.stream(res, await this.pdf.prepararPrescricao(id, user));
+    await this.stream(res, await this.pdf.prepararPrescricao(id, user));
   }
 
   @Get('alta/:id')
@@ -51,19 +50,14 @@ export class PdfController {
     @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ): Promise<void> {
-    this.stream(res, await this.pdf.prepararAlta(id, user));
+    await this.stream(res, await this.pdf.prepararAlta(id, user));
   }
 
-  /** Cria o documento pdfkit e faz pipe direto na resposta HTTP. */
-  private stream(res: Response, prepared: PreparedPdf): void {
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  /** Monta+assina o PDF (buffer) e o envia com o bloco de assinatura + QR. */
+  private async stream(res: Response, prepared: PreparedPdf): Promise<void> {
+    const { filename, buffer } = await this.pdf.montarEAssinar(prepared);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${prepared.filename}"`,
-    );
-    doc.pipe(res);
-    prepared.render(doc);
-    doc.end();
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 }
