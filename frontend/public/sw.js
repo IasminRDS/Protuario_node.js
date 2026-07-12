@@ -1,12 +1,17 @@
-/* Service worker do modo UBS (ADR-10).
+/* Service worker do modo UBS (ADR-10) — versão CONSERVADORA.
  *
- * Estratégia conservadora para sistema clínico:
- *  - assets estáticos do Next (/_next/static, ícones): cache-first (imutáveis);
- *  - navegações: network-first com fallback ao último shell cacheado (offline);
- *  - API (/api/): NUNCA interceptada — dados clínicos não podem ser servidos
- *    de cache; mutações offline vão pela fila IndexedDB do app (offline-queue).
+ * Sistema clínico: NUNCA servir uma página (HTML) desatualizada de cache — isso
+ * poderia exibir dados/telas obsoletos. Portanto:
+ *  - assets estáticos do Next (/_next/static/*, ícones): cache-first — são
+ *    versionados por hash no nome, então nunca ficam obsoletos;
+ *  - navegações (HTML) e /api/*: NETWORK-ONLY, sem cache e sem fallback. Se
+ *    estiver offline, a página não abre — mas o caminho crítico offline (registro
+ *    de triagem/atendimento) é tratado pela FILA IndexedDB do app (offline-queue),
+ *    que independe do service worker.
+ *
+ * Bump de CACHE invalida qualquer cache de versão anterior no activate.
  */
-const CACHE = 'spe-shell-v1';
+const CACHE = 'spe-static-v2';
 const STATIC_PATTERNS = [/^\/_next\/static\//, /^\/icon\.svg$/, /^\/manifest\.json$/];
 
 self.addEventListener('install', (event) => {
@@ -30,10 +35,10 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return; // só mesma origem
-  if (url.pathname.startsWith('/api/')) return; // API nunca cacheada
+  if (url.origin !== self.location.origin) return;
 
-  // Assets estáticos: cache-first.
+  // SOMENTE assets estáticos imutáveis são cacheados (cache-first). Todo o
+  // resto — navegações e API — passa direto para a rede, sem cache.
   if (STATIC_PATTERNS.some((p) => p.test(url.pathname))) {
     event.respondWith(
       caches.match(req).then(
@@ -45,27 +50,6 @@ self.addEventListener('fetch', (event) => {
             return res;
           }),
       ),
-    );
-    return;
-  }
-
-  // Navegações: network-first, fallback ao shell cacheado quando offline.
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-          return res;
-        })
-        .catch(async () => {
-          const hit = await caches.match(req);
-          if (hit) return hit;
-          // Última tentativa: qualquer página cacheada do app (shell).
-          const all = await caches.open(CACHE).then((c) => c.keys());
-          const page = all.find((r) => new URL(r.url).pathname !== '/manifest.json');
-          return page ? caches.match(page) : Response.error();
-        }),
     );
   }
 });
