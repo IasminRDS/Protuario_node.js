@@ -48,7 +48,14 @@ export const envSchema = z.object({
   GOVBR_SIMULATOR: z
     .enum(['true', 'false'])
     .default('true')
-    .transform((v) => v === 'true'),
+    .transform((v) => v === 'true')
+    // Segurança: o IdP simulador autentica qualquer usuário ativo SEM senha.
+    // Ligado em produção = bypass total de autenticação. Falha no boot.
+    .refine((sim) => !(sim && process.env.NODE_ENV === 'production'), {
+      message:
+        'GOVBR_SIMULATOR=true é proibido em produção (bypass de autenticação). ' +
+        'Configure as credenciais reais do gov.br e defina GOVBR_SIMULATOR=false.',
+    }),
   GOVBR_CLIENT_ID: z.string().default('snpe-dev'),
   GOVBR_CLIENT_SECRET: z.string().default(''),
   GOVBR_AUTHORIZE_URL: z.string().default(''), // vazio = usa o simulador embutido

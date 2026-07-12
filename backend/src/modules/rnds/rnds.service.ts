@@ -22,6 +22,21 @@ export class RndsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Guard de tenant: VacinaAplicada e ExameSolicitado ficam FORA de
+   * TENANT_MODELS/RLS, então um findUnique por PK cruzaria hospitais. Confirma
+   * que o paciente do registro é visível ao hospital do chamador (Paciente sob
+   * RLS + escopo app-layer) antes de expor o recurso FHIR. 404 para não revelar
+   * a existência de registros de outro tenant.
+   */
+  private async assertPacienteVisivel(pacienteId: bigint): Promise<void> {
+    const p = await this.prisma.paciente.findFirst({
+      where: { id: pacienteId },
+      select: { id: true },
+    });
+    if (!p) throw new NotFoundException('Registro não encontrado.');
+  }
+
   /** Monta o recurso/bundle FHIR de um registro clínico. */
   async montarRecurso(
     tipo: TipoEnvioRnds,
@@ -33,6 +48,7 @@ export class RndsService {
         include: { vacina: { select: { nome: true } } },
       });
       if (!v) throw new NotFoundException('Vacina aplicada não encontrada.');
+      await this.assertPacienteVisivel(v.pacienteId);
       return {
         recursoTipo: 'Immunization',
         pacienteId: v.pacienteId,
@@ -46,6 +62,7 @@ export class RndsService {
         include: { tipoExame: { select: { nome: true, codigo: true } } },
       });
       if (!e) throw new NotFoundException('Exame não encontrado.');
+      await this.assertPacienteVisivel(e.pacienteId);
       return {
         recursoTipo: 'DiagnosticReport',
         pacienteId: e.pacienteId,

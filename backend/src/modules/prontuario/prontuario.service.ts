@@ -37,6 +37,22 @@ export class ProntuarioService {
   }
 
   /**
+   * Guard de tenant: confirma que o paciente é visível ao hospital do chamador
+   * (Paciente está sob RLS + escopo app-layer). Obrigatório antes de ler modelos
+   * clínicos que ficam FORA de TENANT_MODELS/RLS (Internacao, ExameSolicitado,
+   * VacinaAplicada, Cirurgia) e da tabela global de Auditoria — sem isto, um
+   * pacienteId de outro hospital vazaria PHI cross-tenant. Retorna 404 (não 403)
+   * para não confirmar a existência de pacientes de outro tenant.
+   */
+  private async assertPacienteVisivel(pid: bigint): Promise<void> {
+    const p = await this.prisma.paciente.findFirst({
+      where: { id: pid, deletedAt: null },
+      select: { id: true },
+    });
+    if (!p) throw new NotFoundException('Paciente não encontrado.');
+  }
+
+  /**
    * Sumário do Paciente (IPS-like): cabeçalho com alertas clínicos (alergias,
    * tipo sanguíneo), problemas ativos com CID decodificado, medicamentos em
    * uso, vacinas e a linha do tempo longitudinal completa.
@@ -152,6 +168,7 @@ export class ProntuarioService {
    * é lida diretamente. Não expõe conteúdo clínico, só o registro do acesso.
    */
   async acessos(pacienteId: string, limit = 100) {
+    await this.assertPacienteVisivel(BigInt(pacienteId));
     const rows = await this.prisma.auditoria.findMany({
       where: {
         entity: 'paciente',
@@ -179,6 +196,7 @@ export class ProntuarioService {
   /** Monta a linha do tempo clínica consolidada do paciente. */
   async timeline(pacienteId: string) {
     const pid = BigInt(pacienteId);
+    await this.assertPacienteVisivel(pid);
 
     const [
       triagens,
