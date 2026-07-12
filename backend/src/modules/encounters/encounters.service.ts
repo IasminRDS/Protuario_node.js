@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Atendimento } from '@prisma/client';
+import { Atendimento, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { PatientFlowService } from '../clinical/patient-flow.service';
-import { currentHospitalId } from '../../shared/tenant/tenant-context';
+import { currentHospitalId, currentTx } from '../../shared/tenant/tenant-context';
 import { DomainError } from '../../shared/errors/domain-error';
 import { CreateNoteDto, StartEncounterDto } from './dto/encounter.dto';
 
@@ -33,10 +33,21 @@ export class EncountersService {
     private readonly auditoria: AuditoriaService,
   ) {}
 
+  /**
+   * Reusa a transação da request (aberta pelo TenantTxInterceptor, já com o
+   * GUC `app.hospital_id` — necessário para as policies RLS em INSERT/UPDATE).
+   * Abrir uma $transaction própria criaria uma conexão SEM o GUC e o RLS
+   * recusaria a escrita ("violates row-level security policy").
+   */
+  private runInTx<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    const tx = currentTx();
+    return tx ? fn(tx) : this.prisma.$transaction(fn);
+  }
+
   /** Inicia o atendimento: WAITING_DOCTOR → IN_CONSULTATION (mesma transação). */
   async start(dto: StartEncounterDto, ctx: ActorCtx) {
     const pacienteId = BigInt(dto.pacienteId);
-    const atendimento = await this.prisma.$transaction(async (tx) => {
+    const atendimento = await this.runInTx(async (tx) => {
       const created = await tx.atendimento.create({
         data: {
           pacienteId,
@@ -76,7 +87,7 @@ export class EncountersService {
   /** Coloca o paciente em observação (IN_CONSULTATION → UNDER_OBSERVATION). */
   async observe(id: string, ctx: ActorCtx) {
     const at = await this.load(id);
-    await this.prisma.$transaction(async (tx) => {
+    await this.runInTx(async (tx) => {
       await this.flow.transition(tx, at.pacienteId, 'UNDER_OBSERVATION', ctx.actorId);
     });
     await this.audit(ctx, 'ENCOUNTER_OBSERVATION', at.id);
@@ -86,7 +97,7 @@ export class EncountersService {
   /** Alta: encerra o atendimento e move o paciente para DISCHARGED. */
   async discharge(id: string, ctx: ActorCtx) {
     const at = await this.load(id);
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const updated = await this.runInTx(async (tx) => {
       const u = await tx.atendimento.update({
         where: { id: at.id },
         data: { status: 'FINISHED', finishedAt: new Date() },

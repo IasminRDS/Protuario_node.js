@@ -13,7 +13,6 @@ import {
   Field,
   Input,
   PageHeader,
-  Badge,
 } from '@/components/ui/primitives';
 import { PatientPicker } from '@/components/clinical/PatientPicker';
 import type { Atendimento, Paciente } from '@/types';
@@ -40,7 +39,7 @@ export default function AtendimentosPage() {
       const at = await atendimentoService.iniciar(paciente.id, 'CONSULTA');
       setAtendimento(at);
     } catch (err) {
-      setFeedback({ ok: false, msg: apiErrorMessage(err, 'Não foi possível iniciar (endpoint /atendimentos pendente).') });
+      setFeedback({ ok: false, msg: apiErrorMessage(err, 'Não foi possível iniciar o atendimento.') });
     }
   }
 
@@ -72,7 +71,6 @@ export default function AtendimentosPage() {
       <PageHeader
         title="Atendimento médico"
         subtitle="Evolução clínica, diagnóstico e conduta"
-        actions={<Badge tone="amber">endpoint /atendimentos pendente no backend</Badge>}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

@@ -115,10 +115,18 @@ export class RegulacaoService {
       },
       orderBy: { dataSolicitacao: 'asc' },
       take: 300,
-      include: {
-        paciente: { select: { nome: true, cns: true, municipio: true, uf: true } },
-      },
     });
+
+    // Paciente à parte (não via include): evita a quebra sob RLS quando não há
+    // GUC de tenant (ex.: SuperAdmin) — o include obrigatório falharia.
+    const ids = [...new Set(rows.map((r) => r.pacienteId))];
+    const pacientes = ids.length
+      ? await this.prisma.paciente.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, nome: true, cns: true, municipio: true, uf: true },
+        })
+      : [];
+    const porId = new Map(pacientes.map((p) => [p.id.toString(), p]));
 
     return rows
       .sort(
@@ -126,7 +134,15 @@ export class RegulacaoService {
           (PESO_PRIORIDADE[b.prioridade] ?? 0) - (PESO_PRIORIDADE[a.prioridade] ?? 0) ||
           a.dataSolicitacao.getTime() - b.dataSolicitacao.getTime(),
       )
-      .map((r) => ({ ...this.serialize(r), paciente: r.paciente }));
+      .map((r) => {
+        const p = porId.get(r.pacienteId.toString());
+        return {
+          ...this.serialize(r),
+          paciente: p
+            ? { nome: p.nome, cns: p.cns, municipio: p.municipio, uf: p.uf }
+            : { nome: '—', cns: null, municipio: null, uf: null },
+        };
+      });
   }
 
   /** Aplica uma ação do fluxo de regulação validando a máquina de estados. */

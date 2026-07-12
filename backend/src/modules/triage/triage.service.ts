@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { PatientFlowService } from '../clinical/patient-flow.service';
-import { currentHospitalId } from '../../shared/tenant/tenant-context';
+import { currentHospitalId, currentTx } from '../../shared/tenant/tenant-context';
 import { CreateTriageDto } from './dto/create-triage.dto';
 
 interface ActorCtx {
@@ -26,7 +27,13 @@ export class TriageService {
   async create(dto: CreateTriageDto, ctx: ActorCtx) {
     const pacienteId = BigInt(dto.pacienteId);
 
-    const triagem = await this.prisma.$transaction(async (tx) => {
+    // Reusa a tx da request (com o GUC RLS); só abre própria se não houver.
+    const runInTx = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => {
+      const tx = currentTx();
+      return tx ? fn(tx) : this.prisma.$transaction(fn);
+    };
+
+    const triagem = await runInTx(async (tx) => {
       const created = await tx.triagem.create({
         data: {
           pacienteId,

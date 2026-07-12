@@ -29,6 +29,19 @@ const READ_ACTIONS: ReadonlySet<string> = new Set<string>([
   'groupBy',
 ]);
 
+// Escritas em modelo tenant também precisam do GUC: as policies RLS têm
+// WITH CHECK (INSERT/UPDATE) e USING (UPDATE/DELETE). Sem o GUC na conexão, o
+// Postgres recusa a gravação ("violates row-level security policy").
+const WRITE_ACTIONS: ReadonlySet<string> = new Set<string>([
+  'create',
+  'createMany',
+  'update',
+  'updateMany',
+  'upsert',
+  'delete',
+  'deleteMany',
+]);
+
 /** Delegate camelCase a partir do nome do modelo (Paciente → paciente). */
 function delegateName(model: string): string {
   return model.charAt(0).toLowerCase() + model.slice(1);
@@ -59,30 +72,27 @@ export class PrismaService
         throw err;
       }
 
-      // RLS — pin de leitura: envolve a leitura de modelo tenant numa tx curta
-      // com SET LOCAL app.hospital_id, garantindo GUC + query na MESMA conexão.
-      // Guardas: só com RLS_ENABLED, só READ em TENANT_MODELS, só com hospitalId
-      // e apenas quando a query NÃO está já numa transação:
-      //  - `params.runInTransaction` é o sinal do PRÓPRIO Prisma de que a query
-      //    roda dentro de uma tx (o re-despacho abaixo, a tx-per-request do
-      //    interceptor, ou um $transaction de service) — nesses casos o GUC já
-      //    foi/será setado por quem abriu a tx, e re-pinar causaria recursão.
-      //  - NÃO usar estado compartilhado (ctx) como guarda: queries CONCORRENTES
-      //    da mesma request (findMany+count em Promise.all) se atropelam; e o
-      //    AsyncLocalStorage não sobrevive ao agendador interno do Prisma
-      //    (o guard "some" e o pin re-engata até esgotar o pool — P2028).
+      // RLS — pin de tenant: envolve a operação num modelo tenant numa tx curta
+      // com SET LOCAL app.hospital_id, garantindo GUC + query na MESMA conexão
+      // (vale p/ LEITURA e ESCRITA — a policy checa USING/WITH CHECK).
+      // Guarda ÚNICA: `!params.runInTransaction` — sinal nativo do Prisma de que
+      // a operação NÃO está numa tx (se já estiver, o GUC foi setado por quem a
+      // abriu: a tx-per-request do interceptor ou um $transaction de service).
+      // NÃO usar estado compartilhado (ctx.txClient) como guarda: (a) reads/
+      // writes DIRETOS via `this.prisma.X` durante um POST teriam ctx.txClient
+      // setado mas NÃO usam aquela tx → ficariam sem GUC; (b) queries
+      // concorrentes se atropelam e o ALS não sobrevive ao agendador do Prisma.
+      const model = scoped.model ?? '';
+      const action = scoped.action as string;
       if (
         RLS_ENABLED &&
         ctx &&
         !params.runInTransaction &&
-        !ctx.txClient &&
         ctx.hospitalId &&
-        TENANT_MODELS.has(scoped.model ?? '') &&
-        READ_ACTIONS.has(scoped.action as string)
+        TENANT_MODELS.has(model) &&
+        (READ_ACTIONS.has(action) || WRITE_ACTIONS.has(action))
       ) {
         const hospitalId = ctx.hospitalId;
-        const model = scoped.model as string;
-        const action = scoped.action as string;
         return this.$transaction(async (tx) => {
           await setTenantGuc(tx, hospitalId);
           const delegate = (

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
+import { BrandLogo } from './BrandLogo';
 import { useAuth } from '@/hooks/useAuth';
 import { useVisibleNavGroups } from '@/modules/shared/rbac/useNav';
 import { cn } from '@/utils/cn';
@@ -53,9 +54,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-4">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-clinic-primary">
-          <Activity className="h-5 w-5 text-white" aria-hidden />
-        </span>
+        <BrandLogo size={32} />
         <div>
           <p className="text-sm font-bold text-slate-800">SNPE</p>
           <p className="text-[11px] text-slate-400">Prontuário Eletrônico Nacional</p>

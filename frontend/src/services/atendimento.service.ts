@@ -7,38 +7,51 @@ import type {
 } from '@/types';
 
 /**
- * ⚠️ Endpoints previstos (contrato) — o backend NestJS ainda NÃO expõe o módulo
- * de Atendimento. As chamadas retornarão 404 até que as rotas sejam criadas.
- * A UI trata o erro (não usa dados falsos).
+ * Atendimentos clínicos. Mapeia para o módulo `encounters` do backend
+ * (fluxo WAITING_DOCTOR → IN_CONSULTATION → DISCHARGED).
  */
 export const atendimentoService = {
   async list(params: {
     status?: string;
-    page?: number;
+    pacienteId?: string;
   }): Promise<PaginatedResult<Atendimento>> {
-    const { data } = await api.get<ApiEnvelope<PaginatedResult<Atendimento>>>(
-      '/atendimentos',
-      { params },
-    );
-    return data.data;
+    const { data } = await api.get<ApiEnvelope<Atendimento[]>>('/encounters', {
+      params,
+    });
+    const items = data.data;
+    return {
+      items,
+      meta: { page: 1, pageSize: items.length, total: items.length, totalPages: 1 },
+    };
   },
 
   async iniciar(pacienteId: string, tipo: string): Promise<Atendimento> {
-    const { data } = await api.post<ApiEnvelope<Atendimento>>('/atendimentos', {
+    const { data } = await api.post<ApiEnvelope<Atendimento>>('/encounters', {
       pacienteId,
       tipo,
     });
     return data.data;
   },
 
+  /** Registra a evolução como nota do atendimento (consolida os campos). */
   async registrarEvolucao(
     atendimentoId: string,
     evolucao: EvolucaoClinica,
   ): Promise<void> {
-    await api.post(`/atendimentos/${atendimentoId}/evolucao`, evolucao);
+    const texto = [
+      evolucao.queixaPrincipal && `Queixa: ${evolucao.queixaPrincipal}`,
+      evolucao.conduta && `Conduta: ${evolucao.conduta}`,
+      evolucao.evolucao,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    await api.post(`/encounters/${atendimentoId}/notes`, {
+      evolucao: texto,
+      diagnostico: evolucao.hipoteseDiagnostica,
+    });
   },
 
   async finalizar(atendimentoId: string): Promise<void> {
-    await api.patch(`/atendimentos/${atendimentoId}/finalizar`);
+    await api.patch(`/encounters/${atendimentoId}/discharge`);
   },
 };

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Activity, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
+import { BrandLogo } from '@/components/layout/BrandLogo';
 import { authService, govbrLoginUrl, isMfaChallenge } from '@/services/auth.service';
 import { apiErrorMessage } from '@/services/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -105,11 +106,9 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
-            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-clinic-primary">
-              <Activity className="h-6 w-6 text-white" aria-hidden />
-            </span>
+            <BrandLogo size={52} />
             <h1 className="text-lg font-bold text-slate-800">SNPE</h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-center text-xs text-slate-400">
               Sistema Nacional de Prontuário Eletrônico
             </p>
           </div>
@@ -188,12 +187,17 @@ export default function LoginPage() {
               <span className="h-px flex-1 bg-slate-200" />
             </div>
 
-            {/* Login federado gov.br. Redirect de página inteira (fluxo OIDC). */}
+            {/* Login federado gov.br. Redirect de página inteira (fluxo OIDC).
+                Cores inline (não dependem de tokens Tailwind) — sempre visível. */}
             <a
               href={govbrLoginUrl()}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-govbr-blue px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-govbr-blue-dark"
+              style={{ backgroundColor: '#1351b4' }}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
             >
-              Entrar com <span className="font-bold">gov<span className="text-govbr-yellow">.br</span></span>
+              Entrar com{' '}
+              <span className="font-bold">
+                gov<span style={{ color: '#ffcd07' }}>.br</span>
+              </span>
             </a>
           </form>
         )}

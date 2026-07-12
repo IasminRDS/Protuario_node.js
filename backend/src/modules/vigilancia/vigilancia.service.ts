@@ -142,16 +142,29 @@ export class VigilanciaService {
       where: status ? { status } : undefined,
       orderBy: [{ imediata: 'desc' }, { createdAt: 'desc' }],
       take: 200,
-      include: {
-        paciente: {
-          select: { nome: true, cns: true, municipio: true, uf: true },
-        },
-      },
     });
-    return rows.map((r) => ({
-      ...this.serialize(r),
-      paciente: r.paciente,
-    }));
+
+    // Paciente buscado à parte (NÃO via include): sob RLS, o SuperAdmin não tem
+    // GUC de tenant e o include obrigatório de `paciente` quebraria a query.
+    // Aqui a ausência de paciente vira apenas um dado nulo, sem erro.
+    const ids = [...new Set(rows.map((r) => r.pacienteId))];
+    const pacientes = ids.length
+      ? await this.prisma.paciente.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, nome: true, cns: true, municipio: true, uf: true },
+        })
+      : [];
+    const porId = new Map(pacientes.map((p) => [p.id.toString(), p]));
+
+    return rows.map((r) => {
+      const p = porId.get(r.pacienteId.toString());
+      return {
+        ...this.serialize(r),
+        paciente: p
+          ? { nome: p.nome, cns: p.cns, municipio: p.municipio, uf: p.uf }
+          : { nome: '—', cns: null, municipio: null, uf: null },
+      };
+    });
   }
 
   /** ENVIAR (à vigilância) ou DESCARTAR (falso positivo, motivo obrigatório). */

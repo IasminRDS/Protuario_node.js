@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Clock3 } from 'lucide-react';
+import { Check, Clock3 } from 'lucide-react';
 import { triagemService } from '@/services/clinical.service';
 import { apiErrorMessage } from '@/services/api';
 import { MANCHESTER } from '@/modules/shared/clinical/manchester';
@@ -114,6 +114,19 @@ export default function TriagemPage() {
               >
                 {MANCHESTER.map((nivel) => {
                   const ativo = classificacao === nivel.valor;
+                  // Estilo inline por cor (à prova de purge do Tailwind):
+                  // ATIVO = preenchido na cor + anel; INATIVO = contorno na cor.
+                  const style: React.CSSProperties = ativo
+                    ? {
+                        backgroundColor: nivel.hex,
+                        color: nivel.valor === 'AMARELO' ? '#1c2b39' : '#fff',
+                        boxShadow: `0 0 0 2px #fff, 0 0 0 4px ${nivel.hex}`,
+                      }
+                    : {
+                        backgroundColor: 'transparent',
+                        color: nivel.hex,
+                        border: `1.5px solid ${nivel.hex}`,
+                      };
                   return (
                     <button
                       key={nivel.valor}
@@ -121,15 +134,16 @@ export default function TriagemPage() {
                       role="radio"
                       aria-checked={ativo}
                       onClick={() => setClassificacao(nivel.valor)}
+                      style={style}
                       className={cn(
                         'flex flex-col items-center gap-0.5 rounded-md px-2 py-2 text-xs font-semibold transition-all',
-                        nivel.chip,
-                        ativo
-                          ? `ring-2 ring-offset-2 ${nivel.ring} scale-[1.03]`
-                          : 'opacity-60 hover:opacity-100',
+                        ativo ? 'scale-[1.03]' : 'opacity-90 hover:opacity-100',
                       )}
                     >
-                      <span>{nivel.rotulo}</span>
+                      <span className="flex items-center gap-1">
+                        {ativo && <Check className="h-3 w-3" aria-hidden />}
+                        {nivel.rotulo}
+                      </span>
                       <span className="flex items-center gap-1 text-[10px] font-normal">
                         <Clock3 className="h-3 w-3" aria-hidden /> {nivel.tempoAlvo}
                       </span>

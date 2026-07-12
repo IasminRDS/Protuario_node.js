@@ -13,7 +13,6 @@ import {
   Field,
   Input,
   PageHeader,
-  Badge,
 } from '@/components/ui/primitives';
 import { MedicamentoPicker } from '@/components/clinical/TerminologyPicker';
 
@@ -48,7 +47,6 @@ export default function PrescricaoPage() {
       <PageHeader
         title="Prescrição médica"
         subtitle="Medicamentos, posologia e observações clínicas"
-        actions={<Badge tone="amber">endpoint /prescricoes pendente no backend</Badge>}
       />
 
       <Card className="max-w-2xl p-5">

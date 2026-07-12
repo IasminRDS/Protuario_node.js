@@ -52,10 +52,15 @@ export const prescricaoService = {
     duracao?: string;
     observacoes?: string;
   }): Promise<Prescricao> {
-    const { data } = await api.post<ApiEnvelope<Prescricao>>(
-      '/prescricoes',
-      input,
-    );
+    // Backend: módulo `prescriptions` (campos em inglês).
+    const { data } = await api.post<ApiEnvelope<Prescricao>>('/prescriptions', {
+      atendimentoId: input.atendimentoId,
+      medication: input.medicamento,
+      dosage: input.dosagem,
+      frequency: input.frequencia,
+      duration: input.duracao,
+      observacoes: input.observacoes,
+    });
     return data.data;
   },
 };

@@ -87,15 +87,23 @@ export class EpidemiologiaService {
   async notificacoesPorMunicipio(dias = 30) {
     const rows = await this.prisma.notificacaoCompulsoria.findMany({
       where: { ...this.tenantFilter(), createdAt: { gte: this.since(dias) } },
-      select: {
-        paciente: { select: { municipio: true, uf: true } },
-      },
+      select: { pacienteId: true },
     });
+    // Paciente à parte (não via include RLS-dependente — ver vigilancia.list).
+    const ids = [...new Set(rows.map((r) => r.pacienteId))];
+    const pacientes = ids.length
+      ? await this.prisma.paciente.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, municipio: true, uf: true },
+        })
+      : [];
+    const porId = new Map(pacientes.map((p) => [p.id.toString(), p]));
 
     const mapa = new Map<string, { municipio: string; uf: string; total: number }>();
     for (const r of rows) {
-      const municipio = r.paciente.municipio?.trim() || 'Não informado';
-      const uf = r.paciente.uf?.trim().toUpperCase() || '—';
+      const p = porId.get(r.pacienteId.toString());
+      const municipio = p?.municipio?.trim() || 'Não informado';
+      const uf = p?.uf?.trim().toUpperCase() || '—';
       const chave = `${municipio}|${uf}`;
       const atual = mapa.get(chave) ?? { municipio, uf, total: 0 };
       atual.total += 1;
