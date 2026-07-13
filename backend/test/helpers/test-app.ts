@@ -70,6 +70,21 @@ export async function setupTestApp(): Promise<TestContext> {
   );
   await app.init();
 
+  // Faz o servidor HTTP escutar UMA vez. Sem isto, cada `request(getHttpServer())`
+  // do supertest dispara seu próprio `listen(0)`; sob `Promise.all` (testes de
+  // concorrência) esses listens correm em paralelo no mesmo server → `read
+  // ECONNRESET` intermitente (some localmente, aparece no CI mais lento). Com o
+  // server já escutando, o supertest reutiliza o endereço sem re-listen.
+  await new Promise<void>((resolve, reject) => {
+    const server = app.getHttpServer();
+    const onError = (err: unknown) => reject(err);
+    server.once('error', onError);
+    server.listen(0, () => {
+      server.removeListener('error', onError);
+      resolve();
+    });
+  });
+
   const prisma = app.get(PrismaService);
 
   // O ConfigModule carrega o .env COMMITADO, cujo valor de JWT_ACCESS_SECRET
