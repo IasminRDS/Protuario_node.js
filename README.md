@@ -190,7 +190,7 @@ O `QueryClient` (em `app/providers.tsx`) **não re-tenta em erros 4xx** (respost
 
 ## Deploy
 
-- **Backend:** imagem Docker (`backend/Dockerfile`). Em produção, referencie a imagem pelo `:${SHA}` (imutável) — o CI (`.github/workflows/ci.yml`) compila, testa (unit + e2e com Postgres real) e builda no mesmo commit. Configure `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS`. Aplique migrations com `npm run prisma:deploy` antes de subir.
+- **Backend:** imagem Docker (`Dockerfile` na raiz do monorepo — build a partir da raiz usa o `package-lock.json` da raiz). Em produção, referencie a imagem pelo `:${SHA}` (imutável) — o CI (`.github/workflows/ci.yml`) compila, testa (unit + e2e com Postgres real) e builda no mesmo commit. Configure `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS`. Aplique migrations com `npm run prisma:deploy` antes de subir.
 - **Frontend:** `npm run build && npm run start` (Node) ou deploy na Vercel. Defina `NEXT_PUBLIC_API_URL` apontando para a API pública (`https://…/api/v1`).
 - **Banco:** PostgreSQL 16 gerenciado. Rode o seed apenas em ambientes de demonstração.
 

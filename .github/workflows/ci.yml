@@ -71,6 +71,6 @@ jobs:
       # Build da imagem no MESMO commit testado. Marque com o SHA para
       # rastreabilidade: a imagem em produção sempre aponta para um commit.
       - name: Docker build
-        run: docker build -t pee2-api:${{ github.sha }} ./backend
+        run: docker build -t pee2-api:${{ github.sha }} .
       # Em produção, faça o deploy referenciando :${{ github.sha }} (imutável),
       # nunca :latest — elimina o drift "código ≠ Docker".
