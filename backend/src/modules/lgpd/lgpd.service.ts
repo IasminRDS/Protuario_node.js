@@ -2,7 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
-import { currentHospitalId } from '../../shared/tenant/tenant-context';
 
 /** Versão vigente do termo de consentimento (bump ao alterar o texto). */
 export const TERMO_VERSAO_ATUAL = '2026.1';
