@@ -171,9 +171,13 @@ export class ProntuarioService {
     await this.assertPacienteVisivel(BigInt(pacienteId));
     const rows = await this.prisma.auditoria.findMany({
       where: {
-        entity: 'paciente',
+        // Ambos entity são chaveados por pacienteId: 'paciente' (PATIENT_VIEWED)
+        // e 'prontuario' (download de PDF, gravado com entityId = id do paciente
+        // e operacao EXPORTAR). Sem incluir 'prontuario', o download some do
+        // relatório de transparência LGPD.
+        entity: { in: ['paciente', 'prontuario'] },
         entityId: pacienteId,
-        operacao: { in: ['PATIENT_VIEWED', 'PDF_PRONTUARIO', 'EXPORTAR'] },
+        operacao: { in: ['PATIENT_VIEWED', 'EXPORTAR'] },
       },
       orderBy: { dataEvento: 'desc' },
       take: limit,

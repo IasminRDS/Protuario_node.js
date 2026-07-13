@@ -61,7 +61,10 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      # Stack de HOMOLOGAÇÃO/demo: usa o simulador gov.br, par de assinatura
+      # efêmero e segredos de dev. NÃO é 'production' — em produção o boot recusa
+      # GOVBR_SIMULATOR=true e assinatura efêmera (ver env.ts / signing.service).
+      NODE_ENV: homologation
       PORT: 3000
       # Backbone de eventos: Kafka real (ADR-04). Fallback = LoggingEventBus.
       KAFKA_ENABLED: "true"

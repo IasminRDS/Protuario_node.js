@@ -18,14 +18,28 @@ export class MetricsInterceptor implements NestInterceptor {
     const started = process.hrtime.bigint();
 
     // Usa o padrão da rota (ex.: /pacientes/:id) para não explodir a cardinalidade.
-    const route =
-      req.route?.path ?? (req.url as string)?.split('?')[0] ?? 'unknown';
+    // Fallback 'unknown' (não req.url) para não gerar uma série por path arbitrário.
+    const route = req.route?.path ?? 'unknown';
 
-    const record = () => {
+    const record = (status: number) => {
       const seconds = Number(process.hrtime.bigint() - started) / 1e9;
-      this.metrics.observe(req.method, route, res.statusCode, seconds);
+      this.metrics.observe(req.method, route, status, seconds);
     };
 
-    return next.handle().pipe(tap({ next: record, error: record }));
+    return next.handle().pipe(
+      tap({
+        next: () => record(res.statusCode),
+        // No error, a exception filter ainda não fixou o status em res; lê do
+        // próprio erro (HttpException.getStatus) senão 500. Sem isto, 4xx/5xx
+        // eram registrados como 200 e sumiam do http_requests_errors_total.
+        error: (err: unknown) => {
+          const status =
+            err && typeof (err as { getStatus?: unknown }).getStatus === 'function'
+              ? (err as { getStatus: () => number }).getStatus()
+              : ((err as { status?: number })?.status ?? 500);
+          record(status);
+        },
+      }),
+    );
   }
 }

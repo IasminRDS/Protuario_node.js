@@ -78,8 +78,10 @@ export class GovbrService {
   }
 
   private redirectUri(): string {
-    // Onde o gov.br devolve o code (nosso callback).
-    return 'http://localhost:3000/api/v1/auth/govbr/callback';
+    // Onde o gov.br devolve o code (nosso callback). DEVE bater exatamente com o
+    // redirect_uri registrado no credenciamento gov.br — por isso vem da env
+    // (default localhost em dev). Hardcode quebraria o login real em produção.
+    return this.config.getOrThrow<string>('GOVBR_REDIRECT_URI');
   }
 
   private async validarState(state: string): Promise<void> {

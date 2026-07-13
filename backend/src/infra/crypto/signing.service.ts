@@ -34,6 +34,14 @@ export class SigningService implements OnModuleInit {
       this.publicKey = createPublicKey(this.privateKey); // deriva a pública da privada
       this.logger.log('Chave de assinatura carregada de DOC_SIGNING_PRIVATE_KEY.');
     } else {
+      if (this.config.get<string>('NODE_ENV') === 'production') {
+        // Par efêmero muda a cada boot → toda assinatura emitida antes do
+        // restart passa a ser reportada como "adulterada". Inaceitável em prod.
+        throw new Error(
+          'DOC_SIGNING_PRIVATE_KEY é obrigatório em produção (certificado ICP-Brasil). ' +
+            'Sem ele, as assinaturas usam par RSA efêmero e ficam inválidas após qualquer restart.',
+        );
+      }
       const { privateKey, publicKey } = generateKeyPairSync('rsa', {
         modulusLength: 2048,
       });

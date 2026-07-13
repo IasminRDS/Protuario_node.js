@@ -18,7 +18,12 @@ export function toFhirImmunization(
     },
     patient: { reference: `Patient/${v.pacienteId.toString()}` },
     occurrenceDateTime: v.dataAplicacao.toISOString(),
-    doseQuantity: v.dose ? { value: v.dose } : undefined,
+    // `dose` é texto livre ("1ª dose", "reforço"), não uma quantidade: mapeia
+    // para protocolApplied.doseNumberString. doseQuantity.value exige decimal e
+    // seria rejeitado por um endpoint FHIR validante da RNDS.
+    protocolApplied: v.dose
+      ? [{ doseNumberString: v.dose }]
+      : undefined,
     location: v.unidade ? { display: v.unidade } : undefined,
     performer: v.profissional
       ? [{ actor: { display: v.profissional } }]
