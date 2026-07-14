@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { createCipheriv, randomBytes, type CipherGCM } from 'crypto';
 import {
   Injectable,
   Logger,
@@ -39,10 +40,44 @@ export class BackupService {
 
   constructor(private readonly auditExport: AuditExportService) {}
 
+  /**
+   * Resolve a chave de cifra do backup (AES-256 = 32 bytes, hex ou base64).
+   * PHI NUNCA pode sair em backup de texto puro: em produção, sem
+   * BACKUP_ENCRYPTION_KEY, o backup é RECUSADO (fail-closed). Fora de produção,
+   * sem chave, gera claro (dev) — mas registra aviso.
+   */
+  private resolveEncryptionKey(): Buffer | null {
+    const raw = process.env.BACKUP_ENCRYPTION_KEY?.trim();
+    if (!raw) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new ServiceUnavailableException(
+          'Backup bloqueado: BACKUP_ENCRYPTION_KEY é obrigatória em produção ' +
+            '(dado clínico não pode ser exportado sem criptografia).',
+        );
+      }
+      this.logger.warn('BACKUP_ENCRYPTION_KEY ausente — backup em CLARO (dev).');
+      return null;
+    }
+    const key = /^[0-9a-fA-F]{64}$/.test(raw)
+      ? Buffer.from(raw, 'hex')
+      : Buffer.from(raw, 'base64');
+    if (key.length !== 32) {
+      throw new ServiceUnavailableException(
+        'BACKUP_ENCRYPTION_KEY inválida: use 32 bytes (64 hex ou 44 base64).',
+      );
+    }
+    return key;
+  }
+
   stream(res: Response, actor: AuthenticatedUser, format: BackupFormat): void {
     const conn = this.parseDbUrl(); // pode lançar (500) antes de qualquer header
+    const key = this.resolveEncryptionKey(); // pode lançar (503) em prod sem chave
+    const iv = key ? randomBytes(12) : null; // GCM: nonce de 96 bits
+    const cipher: CipherGCM | null =
+      key && iv ? (createCipheriv('aes-256-gcm', key, iv) as CipherGCM) : null;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `backup-${conn.database}-${timestamp}.${format}`;
+    const filename =
+      `backup-${conn.database}-${timestamp}.${format}` + (cipher ? '.enc' : '');
 
     const args = [
       '-h', conn.host,
@@ -86,22 +121,24 @@ export class BackupService {
         started = true;
         res.setHeader(
           'Content-Type',
-          format === 'dump' ? 'application/octet-stream' : 'application/sql',
+          cipher || format === 'dump'
+            ? 'application/octet-stream'
+            : 'application/sql',
         );
-        res.setHeader(
-          'Content-Disposition',
-          `attachment; filename="${filename}"`,
-        );
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        // Formato do arquivo cifrado: [IV(12)] [ciphertext...] [authTag(16)].
+        if (iv) res.write(iv);
       }
-      bytes += chunk.length;
+      bytes += chunk.length; // conta bytes de PLAINTEXT (limite real do dump)
       if (bytes > MAX_BYTES) {
         child.kill('SIGKILL');
         finalize(false, 'limite de tamanho excedido');
         if (!res.writableEnded) res.destroy();
         return;
       }
+      const out = cipher ? cipher.update(chunk) : chunk;
       // Backpressure: pausa o dump enquanto o socket não drena.
-      if (!res.write(chunk)) {
+      if (!res.write(out)) {
         child.stdout.pause();
         res.once('drain', () => child.stdout.resume());
       }
@@ -127,8 +164,17 @@ export class BackupService {
         finalize(true);
         if (!started) {
           // Dump vazio (improvável): ainda assim entrega um arquivo válido.
-          res.setHeader('Content-Type', 'application/sql');
+          res.setHeader(
+            'Content-Type',
+            cipher ? 'application/octet-stream' : 'application/sql',
+          );
           res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+          if (iv) res.write(iv);
+        }
+        // Fecha a cifra: resto do ciphertext + auth tag GCM (integridade).
+        if (cipher) {
+          res.write(cipher.final());
+          res.write(cipher.getAuthTag());
         }
         if (!res.writableEnded) res.end();
       } else {
