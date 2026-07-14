@@ -76,6 +76,30 @@ describe('Criptografia de campo em repouso (E2E, Postgres real)', () => {
     expect(lido?.alergias).toBe(ALERGIA);
   });
 
+  it('input com prefixo FALSO (enc:v1:) é cifrado mesmo assim (anti-bypass)', async () => {
+    const FAKE = 'enc:v1:tentativa-de-burlar-a-cifra';
+    const id = await createPaciente(ctx.prisma, {
+      hospitalId: hospital,
+      nome: 'Atacante',
+      cpf: '39053344705',
+    });
+    await ctx.prisma.paciente.update({
+      where: { id: BigInt(id) },
+      data: { alergias: FAKE },
+    });
+
+    const rest = await atRest('paciente', 'alergias', BigInt(id));
+    // NÃO pode ser gravado literalmente (senão o input burlaria a cifra):
+    expect(rest).not.toBe(FAKE);
+    expect(rest.startsWith('enc:v1:')).toBe(true);
+    // E a leitura devolve exatamente o que foi enviado (sem crash de integridade).
+    const lido = await ctx.prisma.paciente.findFirst({
+      where: { id: BigInt(id) },
+      select: { alergias: true },
+    });
+    expect(lido?.alergias).toBe(FAKE);
+  });
+
   it('notas SOAP do prontuário: cifradas no banco, em claro pela aplicação', async () => {
     const pacienteId = await createPaciente(ctx.prisma, {
       hospitalId: hospital,

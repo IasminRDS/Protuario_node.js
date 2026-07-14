@@ -105,8 +105,18 @@ export class FieldEncryptionService {
       const rec = obj as Record<string, unknown>;
       for (const f of fields) {
         const v = rec[f];
-        if (typeof v === 'string' && v.length > 0 && !v.startsWith(PREFIX)) {
+        // SEMPRE cifra na escrita (NUNCA confia no prefixo do input): senão um
+        // cliente enviando "enc:v1:..." burlaria a cifra e/ou quebraria a leitura.
+        if (typeof v === 'string' && v.length > 0) {
           rec[f] = this.encrypt(v);
+        } else if (
+          // Sintaxe de update do Prisma: { campo: { set: "valor" } }.
+          v &&
+          typeof v === 'object' &&
+          typeof (v as { set?: unknown }).set === 'string' &&
+          ((v as { set: string }).set).length > 0
+        ) {
+          (v as { set: string }).set = this.encrypt((v as { set: string }).set);
         }
       }
     };
