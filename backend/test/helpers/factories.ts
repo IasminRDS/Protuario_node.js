@@ -89,13 +89,99 @@ export async function createPaciente(
   return p.id.toString();
 }
 
+/** Cria um tipo de exame (catálogo). */
+export async function createTipoExame(
+  prisma: PrismaService,
+  opts: { codigo?: string; nome?: string } = {},
+): Promise<string> {
+  const t = await prisma.tipoExame.create({
+    data: {
+      codigo: opts.codigo ?? `EX_${randomUUID().slice(0, 6)}`,
+      nome: opts.nome ?? 'Hemograma completo',
+    },
+  });
+  return t.id.toString();
+}
+
+/**
+ * Cria diretamente no banco os modelos clínicos que ficam FORA de TENANT_MODELS
+ * (Internacao/ExameSolicitado/VacinaAplicada/Cirurgia). Usados para provar que
+ * o acesso cross-tenant a eles é barrado pelo guard de posse do paciente.
+ */
+export async function createInternacao(
+  prisma: PrismaService,
+  opts: { pacienteId: string; hospitalId?: string; cidPrincipal?: string },
+): Promise<string> {
+  const i = await prisma.internacao.create({
+    data: {
+      pacienteId: BigInt(opts.pacienteId),
+      leito: '101-A',
+      hospitalId: opts.hospitalId ?? null,
+      cidPrincipal: opts.cidPrincipal ?? 'J18',
+      status: 'ATIVA',
+    },
+  });
+  return i.id.toString();
+}
+
+export async function createExame(
+  prisma: PrismaService,
+  opts: { pacienteId: string; tipoExameId: string; hospitalId?: string },
+): Promise<string> {
+  const e = await prisma.exameSolicitado.create({
+    data: {
+      pacienteId: BigInt(opts.pacienteId),
+      tipoExameId: BigInt(opts.tipoExameId),
+      hospitalId: opts.hospitalId ?? null,
+      status: 'resultado_disponivel',
+      interpretacao: 'alterado',
+      resultadoValor: '15.2',
+      resultadoUnidade: 'g/dL',
+      dataResultado: new Date(),
+    },
+  });
+  return e.id.toString();
+}
+
+export async function createVacinaAplicada(
+  prisma: PrismaService,
+  opts: { pacienteId: string; hospitalId?: string },
+): Promise<string> {
+  const v = await prisma.vacinaAplicada.create({
+    data: {
+      pacienteId: BigInt(opts.pacienteId),
+      hospitalId: opts.hospitalId ?? null,
+      nomeVacina: 'Influenza',
+      dose: '1ª dose',
+    },
+  });
+  return v.id.toString();
+}
+
+export async function createCirurgia(
+  prisma: PrismaService,
+  opts: { pacienteId: string; hospitalId?: string },
+): Promise<string> {
+  const c = await prisma.cirurgia.create({
+    data: {
+      pacienteId: BigInt(opts.pacienteId),
+      hospitalId: opts.hospitalId ?? null,
+      descricao: 'Apendicectomia',
+      status: 'concluida',
+      dataInicio: new Date(),
+    },
+  });
+  return c.id.toString();
+}
+
 /** Limpa TODAS as tabelas entre testes (determinístico, sem persistência). */
 export async function truncateAll(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE
        "prontuario","prescricao","triagem","atendimento","paciente","auditoria",
-       "resource_lock","usuario","perfil","unidade","hospital","cidadao",
-       "cidadao_identity_key","outbox_event","processed_event",
+       "internacao","exame_solicitado","tipo_exame","vacina_aplicada","vacina",
+       "cirurgia","resource_lock","usuario","perfil","unidade","hospital",
+       "cidadao","cidadao_identity_key","outbox_event","processed_event",
        "aggregate_sequence","consumer_offset"
      RESTART IDENTITY CASCADE`,
   );

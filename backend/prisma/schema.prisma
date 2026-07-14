@@ -815,11 +815,13 @@ model VacinaAplicada {
   unidade       String?  @db.VarChar(120)
   profissional  String?  @db.VarChar(120)
   observacao    String?  @db.Text
+  hospitalId    String?  @map("hospital_id") @db.Uuid // tenant (TENANT_MODELS)
 
   paciente Paciente @relation(fields: [pacienteId], references: [id])
   vacina   Vacina?  @relation(fields: [vacinaId], references: [id])
 
   @@index([pacienteId])
+  @@index([hospitalId])
   @@map("vacina_aplicada")
 }
 
