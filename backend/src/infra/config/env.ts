@@ -100,7 +100,30 @@ export const envSchema = z.object({
   OUTBOX_STALE_CLAIM_MS: z.coerce.number().default(60000),
   // Retenção de eventos SENT antes da purga (evita table bloat).
   OUTBOX_RETENTION_HOURS: z.coerce.number().default(168),
-});
+})
+  // Deny-by-default em produção: o app NÃO sobe com configuração insegura.
+  // (Zero-trust: segurança não pode depender de o operador "lembrar" da flag.)
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== 'production') return;
+    if (env.RLS_ENABLED !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['RLS_ENABLED'],
+        message:
+          'RLS_ENABLED deve ser "true" em produção (isolamento multi-tenant no ' +
+          'banco). Aponte DATABASE_URL para a role prontuario_app (NOBYPASSRLS).',
+      });
+    }
+    if (env.CORS_ORIGINS.trim() === '*' || env.CORS_ORIGINS.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['CORS_ORIGINS'],
+        message:
+          'CORS_ORIGINS não pode ser "*" (nem vazio) em produção — defina a lista ' +
+          'explícita de origens confiáveis.',
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

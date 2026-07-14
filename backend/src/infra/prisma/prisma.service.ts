@@ -135,6 +135,35 @@ export class PrismaService
     });
 
     await this.$connect();
+    await this.assertRlsEnforceableInProduction();
+  }
+
+  /**
+   * Zero-trust no boot: em produção, o RLS só isola de fato se o app conectar
+   * como uma role SEM superpoder e SEM BYPASSRLS. Se a role efetiva puder
+   * ignorar RLS (superuser, dona com BYPASSRLS, etc.), o isolamento no banco é
+   * uma ilusão — então RECUSAMOS subir (fail-closed) em vez de rodar inseguro.
+   * Fora de produção, apenas registra um aviso (dev/seed roda como dona).
+   */
+  private async assertRlsEnforceableInProduction(): Promise<void> {
+    const rows = await this.$queryRaw<
+      Array<{ rolsuper: boolean; rolbypassrls: boolean; current_user: string }>
+    >`SELECT r.rolsuper, r.rolbypassrls, current_user
+        FROM pg_roles r WHERE r.rolname = current_user`;
+    const role = rows[0];
+    const canBypass = !role || role.rolsuper || role.rolbypassrls;
+    if (!canBypass) return;
+
+    const msg =
+      `A conexão do app usa a role "${role?.current_user ?? '?'}" que pode ` +
+      `IGNORAR o RLS (superuser/BYPASSRLS). O isolamento multi-tenant no banco ` +
+      `não seria enforçado. Use a role NÃO-dona prontuario_app em DATABASE_URL.`;
+
+    if (process.env.NODE_ENV === 'production' && process.env.RLS_ENABLED === 'true') {
+      throw new Error(`[SEGURANÇA] Boot recusado: ${msg}`);
+    }
+    // eslint-disable-next-line no-console
+    console.warn(`[SEGURANÇA] ${msg} (permitido fora de produção)`);
   }
 
   async onModuleDestroy(): Promise<void> {

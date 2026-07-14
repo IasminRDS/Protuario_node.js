@@ -232,7 +232,7 @@ async function main() {
     const mes = String((i % 12) + 1).padStart(2, '0');
     const dia = String((i % 27) + 1).padStart(2, '0');
     const created = await prisma.paciente.upsert({
-      where: { cpf },
+      where: { hospitalId_cpf: { hospitalId: DEMO_HOSPITAL_ID, cpf } },
       update: {},
       create: {
         nome: nomePaciente,
