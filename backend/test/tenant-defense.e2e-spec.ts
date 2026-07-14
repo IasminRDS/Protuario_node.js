@@ -69,7 +69,10 @@ describe('Tenant defense-in-depth — modelos fora de RLS (E2E)', () => {
       tipoExameId: tipoExame,
       hospitalId: hospitalB,
     });
-    vacinaB = await createVacinaAplicada(ctx.prisma, { pacienteId: pacienteB });
+    vacinaB = await createVacinaAplicada(ctx.prisma, {
+      pacienteId: pacienteB,
+      hospitalId: hospitalB,
+    });
     await createCirurgia(ctx.prisma, { pacienteId: pacienteB, hospitalId: hospitalB });
   });
 

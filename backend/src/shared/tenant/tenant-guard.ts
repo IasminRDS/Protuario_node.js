@@ -18,6 +18,15 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set<string>([
   // rodaria sem o GUC e a policy o esconderia → "Inconsistent query result").
   'NotificacaoCompulsoria',
   'Encaminhamento',
+  // Defesa em profundidade (migration 20260715): modelos clínicos que só eram
+  // isolados por filtro manual em cada serviço — frágil (ex.: internacao.
+  // buscarPorId fazia findUnique por id sem escopo → vazamento cross-tenant).
+  // Aqui o escopo por hospitalId passa a ser automático em TODA query. (Policy
+  // RLS no banco para estas tabelas é passo posterior — ver a migration.)
+  'Internacao',
+  'ExameSolicitado',
+  'VacinaAplicada',
+  'Cirurgia',
 ]);
 
 /** Bloqueio explícito: operação em modelo tenant sem hospitalId no contexto. */

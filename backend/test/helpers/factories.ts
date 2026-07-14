@@ -145,11 +145,12 @@ export async function createExame(
 
 export async function createVacinaAplicada(
   prisma: PrismaService,
-  opts: { pacienteId: string },
+  opts: { pacienteId: string; hospitalId?: string },
 ): Promise<string> {
   const v = await prisma.vacinaAplicada.create({
     data: {
       pacienteId: BigInt(opts.pacienteId),
+      hospitalId: opts.hospitalId ?? null,
       nomeVacina: 'Influenza',
       dose: '1ª dose',
     },
