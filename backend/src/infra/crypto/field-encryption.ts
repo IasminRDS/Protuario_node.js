@@ -15,7 +15,18 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
  * Chave: FIELD_ENCRYPTION_KEY (32 bytes; 64 hex ou base64). OBRIGATÓRIA em
  * produção — sem ela, o boot é recusado (PHI não pode ir em claro ao banco).
  */
-const PREFIX = 'enc:v1:';
+const CIPHER_RE = /^enc:v(\d+):/;
+const isCiphertext = (s: string): boolean => CIPHER_RE.test(s);
+
+function parseKey(raw: string, label: string): Buffer {
+  const key = /^[0-9a-fA-F]{64}$/.test(raw)
+    ? Buffer.from(raw, 'hex')
+    : Buffer.from(raw, 'base64');
+  if (key.length !== 32) {
+    throw new Error(`${label} invalida: use 32 bytes (64 hex ou base64).`);
+  }
+  return key;
+}
 
 /**
  * Campos de TEXTO LIVRE sensível (PHI), por modelo Prisma. NÃO inclua campos
@@ -38,55 +49,64 @@ export const PHI_ENCRYPTED_FIELDS: Readonly<Record<string, readonly string[]>> =
 };
 
 export class FieldEncryptionService {
-  private readonly key: Buffer | null;
+  private readonly keyRing = new Map<number, Buffer>(); // versao -> chave
+  private readonly activeVersion: number; // versao usada nas ESCRITAS
   readonly enabled: boolean;
 
   constructor(env: NodeJS.ProcessEnv = process.env) {
-    const raw = env.FIELD_ENCRYPTION_KEY?.trim();
-    if (!raw) {
+    // v1 = FIELD_ENCRYPTION_KEY; v2.. = FIELD_ENCRYPTION_KEY_V2, _V3, ...
+    const v1 = env.FIELD_ENCRYPTION_KEY?.trim();
+    if (v1) this.keyRing.set(1, parseKey(v1, 'FIELD_ENCRYPTION_KEY'));
+    for (let v = 2; v <= 16; v++) {
+      const raw = env[`FIELD_ENCRYPTION_KEY_V${v}`]?.trim();
+      if (raw) this.keyRing.set(v, parseKey(raw, `FIELD_ENCRYPTION_KEY_V${v}`));
+    }
+
+    if (this.keyRing.size === 0) {
       if (env.NODE_ENV === 'production') {
         throw new Error(
-          '[SEGURANÇA] FIELD_ENCRYPTION_KEY é obrigatória em produção — ' +
-            'PHI não pode ser gravado em texto puro no banco.',
+          '[SEGURANCA] FIELD_ENCRYPTION_KEY e obrigatoria em producao — ' +
+            'PHI nao pode ser gravado em texto puro no banco.',
         );
       }
-      this.key = null;
+      this.activeVersion = 0;
       this.enabled = false;
       return;
     }
-    const key = /^[0-9a-fA-F]{64}$/.test(raw)
-      ? Buffer.from(raw, 'hex')
-      : Buffer.from(raw, 'base64');
-    if (key.length !== 32) {
-      throw new Error('FIELD_ENCRYPTION_KEY inválida: use 32 bytes (64 hex ou base64).');
-    }
-    this.key = key;
+    this.activeVersion = Math.max(...this.keyRing.keys());
     this.enabled = true;
   }
 
   private encrypt(plain: string): string {
-    if (!this.key) return plain;
+    const key = this.keyRing.get(this.activeVersion);
+    if (!key) return plain;
     const iv = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', this.key, iv);
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
     const ct = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
-    return `${PREFIX}${iv.toString('base64')}:${tag.toString('base64')}:${ct.toString('base64')}`;
+    return `enc:v${this.activeVersion}:${iv.toString('base64')}:${tag.toString('base64')}:${ct.toString('base64')}`;
   }
 
-  /** Decifra se for um valor cifrado; caso contrário devolve como está. */
+  /** Decifra se for um valor cifrado; caso contrario devolve como esta. */
   private decrypt(value: string): string {
-    if (!this.key || !value.startsWith(PREFIX)) return value;
+    const m = CIPHER_RE.exec(value);
+    if (!this.enabled || !m) return value;
+    const version = Number(m[1]);
+    const key = this.keyRing.get(version);
+    if (!key) {
+      throw new Error(`[SEGURANCA] Sem chave para decifrar campo PHI (versao v${version}).`);
+    }
     try {
-      const [ivB64, tagB64, ctB64] = value.slice(PREFIX.length).split(':');
-      const decipher = createDecipheriv('aes-256-gcm', this.key, Buffer.from(ivB64, 'base64'));
+      const [ivB64, tagB64, ctB64] = value.slice(m[0].length).split(':');
+      const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivB64, 'base64'));
       decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
       return (
         decipher.update(Buffer.from(ctB64, 'base64')).toString('utf8') +
         decipher.final('utf8')
       );
     } catch {
-      // Falha de integridade/chave: NÃO devolve lixo nem texto puro adivinhado.
-      throw new Error('[SEGURANÇA] Falha ao decifrar campo PHI (chave/integridade).');
+      // Falha de integridade/chave: NAO devolve lixo nem texto puro adivinhado.
+      throw new Error('[SEGURANCA] Falha ao decifrar campo PHI (chave/integridade).');
     }
   }
 
@@ -133,7 +153,7 @@ export class FieldEncryptionService {
   decryptResult<T>(value: T): T {
     if (!this.enabled) return value;
     const walk = (v: unknown): unknown => {
-      if (typeof v === 'string') return v.startsWith(PREFIX) ? this.decrypt(v) : v;
+      if (typeof v === 'string') return isCiphertext(v) ? this.decrypt(v) : v;
       if (Array.isArray(v)) return v.map(walk);
       if (v && typeof v === 'object') {
         // Preserva tipos especiais do Prisma (Date, BigInt, Decimal, Buffer).
