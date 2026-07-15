@@ -1,0 +1,22 @@
+# Gitleaks — herda as regras padrão e faz allowlist dos PLACEHOLDERS de dev/test
+# (não são segredos reais; produção usa secret manager). Segredo real novo segue
+# sendo bloqueado.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders de dev/test (não são credenciais reais)"
+regexes = [
+  '''change-me''',
+  '''please-change''',
+  '''test-(access|refresh)-secret''',
+  '''dev-(access|refresh)-secret''',
+  '''prontuario:prontuario''',           # credencial de dev do Postgres local
+  '''prontuario_app:prontuario_app''',   # role de dev do RLS
+]
+paths = [
+  '''backend/docker-compose\.yml''',
+  '''\.github/workflows/ci\.yml''',
+  '''backend/test/.*''',
+  '''backend/prisma/migrations/.*''',
+]

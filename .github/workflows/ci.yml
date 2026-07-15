@@ -54,6 +54,9 @@ jobs:
       - name: Lint
         run: npm run lint -- --max-warnings=0
 
+      - name: Guarda anti-escrita-crua em PHI (cifra em repouso)
+        run: npm run check:phi
+
       - name: Build (type-check real)
         run: npm run build
 
@@ -74,3 +77,33 @@ jobs:
         run: docker build -t pee2-api:${{ github.sha }} .
       # Em produção, faça o deploy referenciando :${{ github.sha }} (imutável),
       # nunca :latest — elimina o drift "código ≠ Docker".
+
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks precisa do histórico
+
+      # Detecção de segredos vazados no código/histórico.
+      - name: Gitleaks (segredos)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Scan de vulnerabilidades em dependências (SCA). Report-only por ora
+      # (exit-code 0) para não bloquear num backlog pré-existente; endureça para
+      # '1' após zerar HIGH/CRITICAL (Dependabot ajuda). Sobe SARIF para a aba
+      # Security do GitHub.
+      - name: Trivy (dependências)
+        uses: aquasecurity/trivy-action@v0.24.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          scanners: vuln,secret
+          format: table
