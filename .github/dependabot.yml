@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Dependências npm — raiz do monorepo (workspaces)
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      backend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # Backend
+  - package-ecosystem: npm
+    directory: "/backend"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Frontend
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Ações do GitHub (pinar/atualizar versões usadas nos workflows)
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

@@ -13,6 +13,7 @@
     "start:prod": "node dist/src/main.js",
     "start:fresh": "npm run prisma:generate && npm run build && npm run start:prod",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+    "check:phi": "node scripts/check-no-raw-phi-writes.mjs",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
