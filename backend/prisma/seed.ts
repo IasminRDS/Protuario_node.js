@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { BlindIndexService } from '../src/infra/crypto/blind-index';
+
+const blind = new BlindIndexService();
 
 const prisma = new PrismaClient();
 
@@ -231,12 +234,14 @@ async function main() {
     const ano = 1955 + ((i * 3) % 50);
     const mes = String((i % 12) + 1).padStart(2, '0');
     const dia = String((i % 27) + 1).padStart(2, '0');
+    const cpfBi = blind.index(cpf, DEMO_HOSPITAL_ID) as string;
     const created = await prisma.paciente.upsert({
-      where: { hospitalId_cpf: { hospitalId: DEMO_HOSPITAL_ID, cpf } },
+      where: { hospitalId_cpfBi: { hospitalId: DEMO_HOSPITAL_ID, cpfBi } },
       update: {},
       create: {
         nome: nomePaciente,
         cpf,
+        cpfBi,
         sexo,
         dataNascimento: new Date(`${ano}-${mes}-${dia}`),
         telefone: `71 9${String(80000000 + i).padStart(8, '0')}`,

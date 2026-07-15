@@ -33,7 +33,10 @@ function parseKey(raw: string, label: string): Buffer {
  * usados em WHERE/orderBy/@unique (cifra quebraria busca/índice/ordenção).
  */
 export const PHI_ENCRYPTED_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  Paciente: ['alergias', 'observacoes'],
+  // cpf/cns cifrados em repouso; a busca/unicidade é feita pelo blind index
+  // (cpfBi/cnsBi). NÃO consultar cpf/cns diretamente em WHERE (ciphertext é
+  // não-determinístico) — use os campos *Bi.
+  Paciente: ['alergias', 'observacoes', 'cpf', 'cns'],
   Prontuario: [
     'evolucao',
     'diagnostico',

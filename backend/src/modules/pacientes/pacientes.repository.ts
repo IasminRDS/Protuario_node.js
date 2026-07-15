@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { currentTx } from '../../shared/tenant/tenant-context';
+import { BlindIndexService } from '../../infra/crypto/blind-index';
+import { currentTx, currentHospitalId } from '../../shared/tenant/tenant-context';
 
 @Injectable()
 export class PacientesRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blind: BlindIndexService,
+  ) {}
 
   /**
    * Cliente de banco da requisição (F0.2): reusa a transação do request quando
@@ -21,11 +25,18 @@ export class PacientesRepository {
     return this.db().paciente.findFirst({ where: { id, deletedAt: null } });
   }
 
-  /** Busca duplicidade por CPF ou CNS (RN-007), inclusive registros já removidos. */
+  /**
+   * Busca duplicidade por CPF ou CNS (RN-007) via BLIND INDEX (cpf/cns em si são
+   * ciphertext não-determinístico). Escopado ao hospital corrente. Inclui
+   * registros já removidos.
+   */
   findByDocumento(cpf: string | null, cns: string | null) {
+    const tenant = currentHospitalId();
+    const cpfBi = this.blind.index(cpf, tenant);
+    const cnsBi = this.blind.index(cns, tenant);
     const or: Prisma.PacienteWhereInput[] = [];
-    if (cpf) or.push({ cpf });
-    if (cns) or.push({ cns });
+    if (cpfBi) or.push({ cpfBi });
+    if (cnsBi) or.push({ cnsBi });
     if (or.length === 0) return Promise.resolve(null);
     return this.db().paciente.findFirst({ where: { OR: or } });
   }

@@ -17,6 +17,7 @@ import {
   PacienteConsistencyState,
 } from './paciente.view';
 import { PacientesRepository } from './pacientes.repository';
+import { BlindIndexService } from '../../infra/crypto/blind-index';
 
 @Injectable()
 export class PacientesService {
@@ -24,6 +25,7 @@ export class PacientesService {
     private readonly repo: PacientesRepository,
     private readonly auditoria: AuditoriaService,
     private readonly prisma: PrismaService,
+    private readonly blind: BlindIndexService,
   ) {}
 
   /**
@@ -48,8 +50,9 @@ export class PacientesService {
       ...(filtros.nome
         ? { nome: { contains: filtros.nome, mode: 'insensitive' } }
         : {}),
+      // Busca por CPF é por IGUALDADE via blind index (cpf é ciphertext).
       ...(filtros.cpf
-        ? { cpf: PacienteRules.normalizarDocumento(filtros.cpf) ?? filtros.cpf }
+        ? { cpfBi: this.blind.index(filtros.cpf, hospitalId) ?? '__no_match__' }
         : {}),
     };
 
