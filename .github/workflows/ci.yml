@@ -96,7 +96,7 @@ jobs:
       # '1' após zerar HIGH/CRITICAL (Dependabot ajuda). Sobe SARIF para a aba
       # Security do GitHub.
       - name: Trivy (dependências)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           scan-type: fs
           scan-ref: .
