@@ -189,7 +189,10 @@ export class InternacaoService {
       status: 'ATIVA',
       ...(hospitalId ? { hospitalId } : {}),
     };
-    const [items, total] = await this.prisma.$transaction([
+    // Promise.all (não $transaction([...])): sob RLS o pin de conexão só seta o
+    // GUC app.hospital_id FORA de tx — numa tx-batch a policy esconderia tudo
+    // (lista vazia). Duas leituras pinadas independentes preservam o isolamento.
+    const [items, total] = await Promise.all([
       this.prisma.internacao.findMany({
         where,
         skip: query.skip,

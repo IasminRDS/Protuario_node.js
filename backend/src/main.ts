@@ -27,11 +27,17 @@ process.on('unhandledRejection', (reason) => {
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+  const isProd = config.get<string>('NODE_ENV') === 'production';
 
-  // 🔒 Segurança HTTP (headers)
+  // Atrás de proxy/ingress (TLS terminado lá): confia no X-Forwarded-* para
+  // que req.secure/proto reflitam o HTTPS real e o HSTS seja coerente.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
+  // 🔒 Segurança HTTP (headers) + HSTS (força HTTPS por 1 ano nos browsers).
   app.use(
     helmet({
       crossOriginResourcePolicy: false, // evita conflito com Swagger/UI
+      hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
     }),
   );
 
@@ -72,21 +78,21 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // 📚 Swagger (OpenAPI)
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Prontuário Eletrônico E2 — API')
-    .setDescription('API REST do PE-E2 (NestJS + Prisma + PostgreSQL).')
-    .setVersion('2.0')
-    .addBearerAuth()
-    .build();
+  // 📚 Swagger (OpenAPI) — NUNCA em produção: expõe toda a superfície da API e
+  // os schemas, servindo de mapa para um atacante. Só em dev/homologação.
+  if (!isProd) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Prontuário Eletrônico E2 — API')
+      .setDescription('API REST do PE-E2 (NestJS + Prisma + PostgreSQL).')
+      .setVersion('2.0')
+      .addBearerAuth()
+      .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  });
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+  }
 
   const port = config.get<number>('PORT', 3000);
 
@@ -94,7 +100,7 @@ async function bootstrap(): Promise<void> {
 
   // 📢 Logs claros (inclui versão!)
   console.log(`🚀 API: http://localhost:${port}/api/v1`);
-  console.log(`📚 Swagger: http://localhost:${port}/api/docs`);
+  if (!isProd) console.log(`📚 Swagger: http://localhost:${port}/api/docs`);
 }
 
 bootstrap();
