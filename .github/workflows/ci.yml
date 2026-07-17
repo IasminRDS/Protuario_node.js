@@ -35,9 +35,9 @@ jobs:
       NODE_ENV: test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -70,7 +70,7 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Build da imagem no MESMO commit testado. Marque com o SHA para
       # rastreabilidade: a imagem em produção sempre aponta para um commit.
       - name: Docker build
@@ -83,13 +83,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # gitleaks precisa do histórico
 
       # Detecção de segredos vazados no código/histórico.
       - name: Gitleaks (segredos)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -98,7 +98,7 @@ jobs:
       # '1' após zerar HIGH/CRITICAL (Dependabot ajuda). Sobe SARIF para a aba
       # Security do GitHub.
       - name: Trivy (dependências)
-        uses: aquasecurity/trivy-action@v0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
