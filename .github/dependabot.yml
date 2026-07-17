@@ -1,32 +1,52 @@
 version: 2
+# Estratégia: bumps de ROTINA só minor/patch (agrupados = pouco ruído). Majors
+# são breaking → feitos deliberadamente, não por PR automática. IMPORTANTE: o
+# `ignore` de major afeta apenas *version-update*; **security updates** (mesmo
+# major, disparados por advisory) continuam sendo abertos normalmente.
 updates:
-  # Dependências npm — raiz do monorepo (workspaces)
   - package-ecosystem: npm
     directory: "/"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      backend-minor-patch:
+      npm-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Backend
   - package-ecosystem: npm
     directory: "/backend"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Frontend
   - package-ecosystem: npm
     directory: "/frontend"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Ações do GitHub (pinar/atualizar versões usadas nos workflows)
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
