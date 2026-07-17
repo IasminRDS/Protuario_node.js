@@ -158,5 +158,10 @@ instance/*.db
 backend/node_modules/
 frontend/node_modules/
 
+# Monorepo com npm workspaces: o ÚNICO lockfile canônico é o da raiz. Lockfiles
+# dentro do frontend são órfãos (criados por `npm ci/install` rodado na pasta
+# errada) e ficam dessincronizados → `npm ci` quebra. Rode `npm ci` na RAIZ.
+frontend/package-lock.json
+
 # Tooling local do agente (Claude Code) — não versionar
 .claude/
