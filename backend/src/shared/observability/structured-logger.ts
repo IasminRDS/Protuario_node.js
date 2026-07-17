@@ -1,5 +1,8 @@
+import { currentCorrelation } from '../tenant/tenant-context';
+
 /**
- * Logging estruturado (JSON) com traceId. Uma linha por evento, apto a ELK/Loki.
+ * Logging estruturado (JSON) com correlação forense (traceId/userId/tenantId
+ * do contexto de requisição). Uma linha por evento, apto a ELK/Loki.
  */
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
@@ -19,7 +22,8 @@ export function logJson(
     level,
     context,
     message,
-    ...fields,
+    ...currentCorrelation(), // traceId/userId/tenantId do ALS (correlação)
+    ...fields, // campos explícitos podem sobrescrever
   });
   // stdout/stderr: coletados pelo agregador central de logs.
   if (level === 'error') {
