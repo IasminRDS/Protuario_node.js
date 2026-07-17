@@ -39,3 +39,21 @@ export function currentHospitalId(): string | null {
 export function currentTx(): Prisma.TransactionClient | undefined {
   return tenantStore.getStore()?.txClient;
 }
+
+/**
+ * Correlação forense da requisição para os logs: traceId (requestId), userId e
+ * tenantId (hospitalId). Vazio fora de uma requisição HTTP.
+ */
+export function currentCorrelation(): {
+  traceId?: string;
+  userId?: string;
+  tenantId?: string;
+} {
+  const s = tenantStore.getStore();
+  if (!s) return {};
+  return {
+    ...(s.requestId ? { traceId: s.requestId } : {}),
+    ...(s.userId ? { userId: s.userId } : {}),
+    ...(s.hospitalId ? { tenantId: s.hospitalId } : {}),
+  };
+}
