@@ -38,6 +38,17 @@ describe('FieldEncryptionService — rotação de chave (key-ring)', () => {
     expect(() => onlyV2.decryptResult({ a: args.data.alergias })).toThrow(/Sem chave|decifrar/i);
   });
 
+  it('AAD: relocar ciphertext de um campo para OUTRO é detectado (throw)', () => {
+    const svc = new FieldEncryptionService({ FIELD_ENCRYPTION_KEY: K1 } as never);
+    const args: { data: { alergias: string } } = { data: { alergias: 'Penicilina' } };
+    svc.encryptWriteArgs('Paciente', args); // cifra com AAD='alergias'
+    const ct = args.data.alergias;
+    // Mesmo campo → decifra ok.
+    expect(svc.decryptResult({ alergias: ct })).toEqual({ alergias: 'Penicilina' });
+    // Relocado para 'observacoes' → AAD não bate → recusa (não vaza).
+    expect(() => svc.decryptResult({ observacoes: ct })).toThrow(/decifrar|integridade/i);
+  });
+
   it('desabilitado sem chave (fora de produção) — passthrough', () => {
     const off = new FieldEncryptionService({ NODE_ENV: 'test' } as never);
     expect(off.enabled).toBe(false);
