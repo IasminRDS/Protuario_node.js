@@ -80,12 +80,14 @@ model Usuario {
 model Paciente {
   id             BigInt   @id @default(autoincrement())
   nome           String   @db.VarChar(250)
-  // CPF/CNS únicos POR HOSPITAL (não globalmente): o mesmo paciente pode ser
-  // atendido em vários hospitais, e a violação de unicidade não pode virar um
-  // oráculo de existência cross-tenant. A identidade nacional única fica no
+  // CPF/CNS CIFRADOS em repouso (VarChar 255 p/ caber o ciphertext AES-GCM). A
+  // busca/unicidade POR HOSPITAL é feita pelo blind index (cpfBi/cnsBi), não pelo
+  // texto puro — que não sai do banco em claro. A identidade nacional fica no
   // Cidadao (MPI). Ver @@unique abaixo.
-  cpf            String?  @db.VarChar(14)
-  cns            String?  @db.VarChar(30) // Cartão Nacional de Saúde
+  cpf            String?  @db.VarChar(255)
+  cns            String?  @db.VarChar(255)
+  cpfBi          String?  @map("cpf_bi") @db.Char(64) // HMAC-SHA256(hospitalId:cpf)
+  cnsBi          String?  @map("cns_bi") @db.Char(64)
   sexo           String   @db.Char(1) // CHECK ('M','F','O')
   dataNascimento DateTime @map("data_nascimento") @db.Date
   telefone       String?  @db.VarChar(20)
@@ -147,10 +149,11 @@ model Paciente {
   apacs             APAC[]
   notificacoes      NotificacaoCompulsoria[]
 
-  // Unicidade POR TENANT (nulls distintos no Postgres → múltiplos sem documento
-  // são permitidos; a deduplicação de sem-documento é responsabilidade do MPI).
-  @@unique([hospitalId, cpf])
-  @@unique([hospitalId, cns])
+  // Unicidade POR TENANT via blind index (o cpf/cns em si é ciphertext não-
+  // determinístico, não serve para unique). Nulls distintos → múltiplos sem
+  // documento por hospital são permitidos (dedup fica com o MPI).
+  @@unique([hospitalId, cpfBi])
+  @@unique([hospitalId, cnsBi])
   @@index([nome])
   @@index([deletedAt])
   @@map("paciente")

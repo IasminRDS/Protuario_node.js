@@ -6,6 +6,7 @@ import { PaginationQueryDto } from '../../shared/dto/pagination-query.dto';
 import { CreatePacienteDto } from './dto/create-paciente.dto';
 import { PacientesRepository } from './pacientes.repository';
 import { PacientesService } from './pacientes.service';
+import { BlindIndexService } from '../../infra/crypto/blind-index';
 
 const fakePaciente = (over: Partial<Paciente> = {}): Paciente =>
   ({
@@ -54,7 +55,8 @@ describe('PacientesService', () => {
       $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn({})),
     } as unknown as import('../../infra/prisma/prisma.service').PrismaService;
 
-    service = new PacientesService(repo, auditoria, prisma);
+    const blind = new BlindIndexService({ NODE_ENV: 'test' } as never);
+    service = new PacientesService(repo, auditoria, prisma, blind);
   });
 
   const dto: CreatePacienteDto = {

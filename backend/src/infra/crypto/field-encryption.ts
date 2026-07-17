@@ -33,7 +33,10 @@ function parseKey(raw: string, label: string): Buffer {
  * usados em WHERE/orderBy/@unique (cifra quebraria busca/índice/ordenção).
  */
 export const PHI_ENCRYPTED_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  Paciente: ['alergias', 'observacoes'],
+  // cpf/cns cifrados em repouso; a busca/unicidade é feita pelo blind index
+  // (cpfBi/cnsBi). NÃO consultar cpf/cns diretamente em WHERE (ciphertext é
+  // não-determinístico) — use os campos *Bi.
+  Paciente: ['alergias', 'observacoes', 'cpf', 'cns'],
   Prontuario: [
     'evolucao',
     'diagnostico',
@@ -77,34 +80,54 @@ export class FieldEncryptionService {
     this.enabled = true;
   }
 
-  private encrypt(plain: string): string {
+  // AAD (dados adicionais autenticados) = NOME do campo. Vincula o ciphertext ao
+  // campo: um insider com escrita no banco não consegue RELOCAR o ciphertext de
+  // um campo para outro (ex.: alergias→observacoes) sem a auth tag falhar. O
+  // nome do campo está disponível na escrita (allowlist) E na leitura (chave do
+  // objeto no walk), então não exige mapa de modelo/relação.
+  private encrypt(plain: string, aad?: string): string {
     const key = this.keyRing.get(this.activeVersion);
     if (!key) return plain;
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', key, iv);
+    if (aad) cipher.setAAD(Buffer.from(aad, 'utf8'));
     const ct = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
     return `enc:v${this.activeVersion}:${iv.toString('base64')}:${tag.toString('base64')}:${ct.toString('base64')}`;
   }
 
+  private decryptOnce(value: string, aad: string | undefined): string {
+    const m = CIPHER_RE.exec(value)!;
+    const key = this.keyRing.get(Number(m[1]))!;
+    const [ivB64, tagB64, ctB64] = value.slice(m[0].length).split(':');
+    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivB64, 'base64'));
+    if (aad) decipher.setAAD(Buffer.from(aad, 'utf8'));
+    decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+    return (
+      decipher.update(Buffer.from(ctB64, 'base64')).toString('utf8') +
+      decipher.final('utf8')
+    );
+  }
+
   /** Decifra se for um valor cifrado; caso contrario devolve como esta. */
-  private decrypt(value: string): string {
+  private decrypt(value: string, aad?: string): string {
     const m = CIPHER_RE.exec(value);
     if (!this.enabled || !m) return value;
-    const version = Number(m[1]);
-    const key = this.keyRing.get(version);
-    if (!key) {
-      throw new Error(`[SEGURANCA] Sem chave para decifrar campo PHI (versao v${version}).`);
+    if (!this.keyRing.has(Number(m[1]))) {
+      throw new Error(`[SEGURANCA] Sem chave para decifrar campo PHI (versao v${m[1]}).`);
     }
     try {
-      const [ivB64, tagB64, ctB64] = value.slice(m[0].length).split(':');
-      const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivB64, 'base64'));
-      decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
-      return (
-        decipher.update(Buffer.from(ctB64, 'base64')).toString('utf8') +
-        decipher.final('utf8')
-      );
+      return this.decryptOnce(value, aad);
     } catch {
+      // Fallback legado: dados cifrados ANTES do AAD não têm AAD ligado. Se a
+      // decifra com AAD falhar, tenta sem — cobre a transição sem re-cifrar tudo.
+      if (aad) {
+        try {
+          return this.decryptOnce(value, undefined);
+        } catch {
+          /* cai no throw abaixo */
+        }
+      }
       // Falha de integridade/chave: NAO devolve lixo nem texto puro adivinhado.
       throw new Error('[SEGURANCA] Falha ao decifrar campo PHI (chave/integridade).');
     }
@@ -127,8 +150,9 @@ export class FieldEncryptionService {
         const v = rec[f];
         // SEMPRE cifra na escrita (NUNCA confia no prefixo do input): senão um
         // cliente enviando "enc:v1:..." burlaria a cifra e/ou quebraria a leitura.
+        // AAD = nome do campo (f) → vincula o ciphertext ao campo.
         if (typeof v === 'string' && v.length > 0) {
-          rec[f] = this.encrypt(v);
+          rec[f] = this.encrypt(v, f);
         } else if (
           // Sintaxe de update do Prisma: { campo: { set: "valor" } }.
           v &&
@@ -136,7 +160,7 @@ export class FieldEncryptionService {
           typeof (v as { set?: unknown }).set === 'string' &&
           ((v as { set: string }).set).length > 0
         ) {
-          (v as { set: string }).set = this.encrypt((v as { set: string }).set);
+          (v as { set: string }).set = this.encrypt((v as { set: string }).set, f);
         }
       }
     };
@@ -152,9 +176,11 @@ export class FieldEncryptionService {
    */
   decryptResult<T>(value: T): T {
     if (!this.enabled) return value;
-    const walk = (v: unknown): unknown => {
-      if (typeof v === 'string') return isCiphertext(v) ? this.decrypt(v) : v;
-      if (Array.isArray(v)) return v.map(walk);
+    // `aad` = nome do campo (chave do objeto) sob o qual o valor está — mesmo
+    // AAD usado na escrita. Arrays herdam o AAD do campo pai (ex.: string[]).
+    const walk = (v: unknown, aad?: string): unknown => {
+      if (typeof v === 'string') return isCiphertext(v) ? this.decrypt(v, aad) : v;
+      if (Array.isArray(v)) return v.map((x) => walk(x, aad));
       if (v && typeof v === 'object') {
         // Preserva tipos especiais do Prisma (Date, BigInt, Decimal, Buffer).
         if (
@@ -165,11 +191,11 @@ export class FieldEncryptionService {
           return v;
         }
         const rec = v as Record<string, unknown>;
-        for (const k of Object.keys(rec)) rec[k] = walk(rec[k]);
+        for (const k of Object.keys(rec)) rec[k] = walk(rec[k], k);
         return rec;
       }
       return v;
     };
-    return walk(value) as T;
+    return walk(value, undefined) as T;
   }
 }

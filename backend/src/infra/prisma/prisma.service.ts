@@ -13,6 +13,7 @@ import {
 } from '../../shared/tenant/tenant-guard';
 import { RLS_ENABLED, setTenantGuc, setSuperadminGuc } from '../../shared/tenant/rls';
 import { FieldEncryptionService } from '../crypto/field-encryption';
+import { BlindIndexService } from '../crypto/blind-index';
 
 /**
  * Ações de LEITURA (após scopeParams, que já reescreve findUnique→findFirst).
@@ -64,6 +65,9 @@ export class PrismaService
   // sem FIELD_ENCRYPTION_KEY o boot falha aqui (fail-closed, PHI não vai em claro).
   private readonly fieldCrypto = new FieldEncryptionService();
 
+  // Blind index (busca/unicidade sobre campos cifrados, ex.: CPF/CNS).
+  private readonly blindIndex = new BlindIndexService();
+
   async onModuleInit(): Promise<void> {
     this.$use(async (params, next) => {
       const ctx = currentTenant();
@@ -76,6 +80,14 @@ export class PrismaService
         }
         throw err;
       }
+
+      // Blind index: calcula cpfBi/cnsBi a partir do valor EM CLARO — precisa
+      // rodar ANTES da cifra (que substitui o cpf por ciphertext).
+      this.blindIndex.applyWriteArgs(
+        scoped.model,
+        scoped.args as { data?: unknown; create?: unknown; update?: unknown },
+        ctx?.hospitalId,
+      );
 
       // Criptografia em repouso: cifra os campos PHI ANTES de ir ao banco.
       this.fieldCrypto.encryptWriteArgs(

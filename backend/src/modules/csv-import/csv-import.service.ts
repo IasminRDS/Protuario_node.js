@@ -8,6 +8,7 @@ import {
 import { parse } from 'csv-parse';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { BlindIndexService } from '../../infra/crypto/blind-index';
 import { AuditExportService } from '../audit/audit.service';
 import { currentHospitalId } from '../../shared/tenant/tenant-context';
 import { AuthenticatedUser } from '../../shared/interfaces/authenticated-user.interface';
@@ -43,6 +44,7 @@ export class CsvImportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditExport: AuditExportService,
+    private readonly blind: BlindIndexService,
   ) {}
 
   /**
@@ -207,8 +209,14 @@ export class CsvImportService {
     erros: ImportErroDto[],
   ): Promise<PacienteNovo[]> {
     if (candidatos.length === 0) return [];
+    // Dedup por BLIND INDEX (cpf é ciphertext no banco). O select de cpf volta
+    // decifrado (middleware) → o Set em texto puro segue válido.
+    const tenant = currentHospitalId();
+    const bis = candidatos
+      .map((c) => this.blind.index(c.cpf, tenant))
+      .filter((b): b is string => b !== null);
     const existentes = await this.prisma.paciente.findMany({
-      where: { cpf: { in: candidatos.map((c) => c.cpf) }, deletedAt: null },
+      where: { cpfBi: { in: bis }, deletedAt: null },
       select: { cpf: true },
     });
     const jaExiste = new Set(existentes.map((e) => e.cpf));
